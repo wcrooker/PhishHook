@@ -37,6 +37,7 @@ func setupTest(t *testing.T) *testContext {
 	}
 	ctx := &testContext{}
 	ctx.config = conf
+	conf.AdminConf.TrustedOrigins = []string{"127.0.0.1"}
 	ctx.adminServer = httptest.NewUnstartedServer(NewAdminServer(ctx.config.AdminConf).server.Handler)
 	ctx.adminServer.Config.Addr = ctx.config.AdminConf.ListenURL
 	ctx.adminServer.Start()

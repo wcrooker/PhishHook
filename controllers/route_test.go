@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strings"
 	"testing"
@@ -11,7 +12,13 @@ import (
 )
 
 func attemptLogin(t *testing.T, ctx *testContext, client *http.Client, username, password, optionalPath string) *http.Response {
-	resp, err := http.Get(fmt.Sprintf("%s/login", ctx.adminServer.URL))
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("error creating cookie jar: %v", err)
+	}
+	getClient := &http.Client{Jar: jar}
+
+	resp, err := getClient.Get(fmt.Sprintf("%s/login", ctx.adminServer.URL))
 	if err != nil {
 		t.Fatalf("error requesting the /login endpoint: %v", err)
 	}
@@ -31,10 +38,13 @@ func attemptLogin(t *testing.T, ctx *testContext, client *http.Client, username,
 		t.Fatal("unable to find csrf_token value in login response")
 	}
 	if client == nil {
-		client = &http.Client{}
+		client = &http.Client{Jar: jar}
+	} else if client.Jar == nil {
+		client.Jar = jar
 	}
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/login%s", ctx.adminServer.URL, optionalPath), strings.NewReader(url.Values{
+	loginURL := fmt.Sprintf("%s/login%s", ctx.adminServer.URL, optionalPath)
+	req, err := http.NewRequest("POST", loginURL, strings.NewReader(url.Values{
 		"username":   {username},
 		"password":   {password},
 		"csrf_token": {token},
@@ -43,7 +53,6 @@ func attemptLogin(t *testing.T, ctx *testContext, client *http.Client, username,
 		t.Fatalf("error creating new /login request: %v", err)
 	}
 
-	req.Header.Set("Cookie", resp.Header.Get("Set-Cookie"))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err = client.Do(req)
