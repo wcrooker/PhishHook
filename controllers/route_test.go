@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"net/http/cookiejar"
@@ -16,7 +17,9 @@ func attemptLogin(t *testing.T, ctx *testContext, client *http.Client, username,
 	if err != nil {
 		t.Fatalf("error creating cookie jar: %v", err)
 	}
-	getClient := &http.Client{Jar: jar}
+	tlsConfig := &tls.Config{InsecureSkipVerify: true}
+	transport := &http.Transport{TLSClientConfig: tlsConfig}
+	getClient := &http.Client{Jar: jar, Transport: transport}
 
 	resp, err := getClient.Get(fmt.Sprintf("%s/login", ctx.adminServer.URL))
 	if err != nil {
@@ -38,9 +41,14 @@ func attemptLogin(t *testing.T, ctx *testContext, client *http.Client, username,
 		t.Fatal("unable to find csrf_token value in login response")
 	}
 	if client == nil {
-		client = &http.Client{Jar: jar}
-	} else if client.Jar == nil {
-		client.Jar = jar
+		client = &http.Client{Jar: jar, Transport: transport}
+	} else {
+		if client.Jar == nil {
+			client.Jar = jar
+		}
+		if client.Transport == nil {
+			client.Transport = transport
+		}
 	}
 
 	loginURL := fmt.Sprintf("%s/login%s", ctx.adminServer.URL, optionalPath)
@@ -54,6 +62,7 @@ func attemptLogin(t *testing.T, ctx *testContext, client *http.Client, username,
 	}
 
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Referer", fmt.Sprintf("%s/login", ctx.adminServer.URL))
 
 	resp, err = client.Do(req)
 	if err != nil {
@@ -65,7 +74,11 @@ func attemptLogin(t *testing.T, ctx *testContext, client *http.Client, username,
 func TestLoginCSRF(t *testing.T) {
 	ctx := setupTest(t)
 	defer tearDown(t, ctx)
-	resp, err := http.PostForm(fmt.Sprintf("%s/login", ctx.adminServer.URL),
+	tlsConfig := &tls.Config{InsecureSkipVerify: true}
+	transport := &http.Transport{TLSClientConfig: tlsConfig}
+	client := &http.Client{Transport: transport}
+
+	resp, err := client.PostForm(fmt.Sprintf("%s/login", ctx.adminServer.URL),
 		url.Values{
 			"username": {"admin"},
 			"password": {"gophish"},

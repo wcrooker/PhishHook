@@ -37,10 +37,10 @@ func setupTest(t *testing.T) *testContext {
 	}
 	ctx := &testContext{}
 	ctx.config = conf
-	conf.AdminConf.TrustedOrigins = []string{"127.0.0.1"}
+	conf.AdminConf.UseTLS = true
 	ctx.adminServer = httptest.NewUnstartedServer(NewAdminServer(ctx.config.AdminConf).server.Handler)
 	ctx.adminServer.Config.Addr = ctx.config.AdminConf.ListenURL
-	ctx.adminServer.Start()
+	ctx.adminServer.StartTLS()
 	// Get the API key to use for these tests
 	u, err := models.GetUser(1)
 	// Reset the temporary password for the admin user to a value we control
