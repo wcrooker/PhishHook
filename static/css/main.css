@@ -703,7 +703,31 @@ table.dataTable {
 
 .nav-sidebar>li.active>a:focus,
 .nav-sidebar>li.active>a:hover {
-    background-color: #37485a;
+    background-color: #0891b2;
+}
+
+/* PhishHook Branding - Cyan/Blue Theme */
+.navbar-inverse {
+    background-color: #0e7490 !important;
+    border-color: #0891b2 !important;
+}
+
+.navbar-inverse .navbar-brand {
+    color: #ffffff !important;
+}
+
+.btn-primary {
+    background-color: #0891b2 !important;
+    border-color: #0e7490 !important;
+}
+
+.btn-primary:hover {
+    background-color: #0e7490 !important;
+    border-color: #155e75 !important;
+}
+
+.nav-sidebar>.active>a {
+    background-color: #0891b2 !important;
 }
 
 .nav-badge {
