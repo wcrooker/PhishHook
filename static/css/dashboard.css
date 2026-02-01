@@ -2,7 +2,6 @@
  * Base structure
  */
 
-/* Move down content because we have a fixed navbar that is 50px tall */
 body {
   padding-top: 50px;
 }
@@ -14,7 +13,7 @@ body {
 
 .sub-header {
   padding-bottom: 10px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
 }
 
 
@@ -35,11 +34,11 @@ body {
     display: block;
     padding: 20px;
     overflow-x: hidden;
-    overflow-y: auto; /* Scrollable contents if viewport is shorter than content. */
-    background-color: #f5f5f5;
-    border-right: 1px solid #eee;
+    overflow-y: auto;
   }
 }
+
+
 
 /* Sidebar navigation */
 .nav-sidebar {
@@ -51,9 +50,15 @@ body {
   padding-right: 20px;
   padding-left: 20px;
 }
+.nav-sidebar > li > a:hover {
+  background-color: var(--sidebar-hover);
+}
 .nav-sidebar > .active > a {
   color: #fff;
-  background-color: #283F50;
+  background-color: #0891b2;
+}
+.nav-sidebar > .active > a:hover {
+  background-color: #0e7490;
 }
 
 
@@ -73,6 +78,7 @@ body {
 .main .page-header {
   margin-top: 0;
 }
+
 
 
 /*

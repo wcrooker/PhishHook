@@ -93,14 +93,19 @@
     transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
-/* Apply theme variables to base elements */
+/* Apply theme variables to base elements - !important to override Bootstrap */
 body {
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
+    background-color: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
 }
 
 .container, .container-fluid {
-    background-color: var(--bg-primary);
+    background-color: var(--bg-primary) !important;
+}
+
+.main {
+    background-color: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
 }
 
 /* Dark mode toggle button */
@@ -879,7 +884,8 @@ table.dataTable {
 
 /* Sidebar dark mode support */
 .sidebar {
-    background-color: var(--sidebar-bg);
+    background-color: var(--sidebar-bg) !important;
+    border-right-color: var(--border-color) !important;
 }
 
 .sidebar a {
@@ -1115,4 +1121,194 @@ a:hover {
 }
 #password-strength-container {
     height: 40px;
+}
+
+/* ========================================
+   DARK MODE FIXES - High Specificity Overrides
+   ======================================== */
+
+/* Fix navbar dark mode - override Bootstrap's !important */
+[data-theme="dark"] .navbar-inverse {
+    background-color: #161b22 !important;
+    border-color: #30363d !important;
+}
+
+[data-theme="dark"] .navbar-inverse .navbar-brand {
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .navbar-inverse .navbar-nav > li > a {
+    color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .navbar-inverse .navbar-nav > li > a:hover,
+[data-theme="dark"] .navbar-inverse .navbar-nav > li > a:focus {
+    color: #ffffff !important;
+    background-color: #21262d !important;
+}
+
+/* Fix sidebar dark mode */
+[data-theme="dark"] .sidebar {
+    background-color: #0d1117 !important;
+    border-color: #30363d !important;
+}
+
+[data-theme="dark"] .sidebar a {
+    color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .sidebar a:hover,
+[data-theme="dark"] .sidebar a:focus {
+    color: #ffffff !important;
+    background-color: #161b22 !important;
+}
+
+/* Fix body and main content dark mode */
+[data-theme="dark"] body {
+    background-color: #0d1117 !important;
+    color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .main {
+    background-color: #0d1117 !important;
+}
+
+[data-theme="dark"] .container,
+[data-theme="dark"] .container-fluid {
+    background-color: #0d1117 !important;
+}
+
+/* Fix theme toggle button visibility */
+[data-theme="dark"] .theme-toggle {
+    background-color: transparent !important;
+    border-color: #30363d !important;
+    color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .theme-toggle:hover {
+    background-color: #21262d !important;
+    border-color: #58a6ff !important;
+    color: #ffffff !important;
+}
+
+/* Ensure theme toggle is visible in navbar */
+.navbar .theme-toggle {
+    display: inline-flex !important;
+    align-items: center !important;
+    margin-left: 10px !important;
+    margin-right: 10px !important;
+    vertical-align: middle !important;
+}
+
+/* Fix panels and cards in dark mode */
+[data-theme="dark"] .panel,
+[data-theme="dark"] .panel-default {
+    background-color: #161b22 !important;
+    border-color: #30363d !important;
+}
+
+[data-theme="dark"] .panel-heading {
+    background-color: #21262d !important;
+    border-color: #30363d !important;
+    color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .panel-body {
+    background-color: #161b22 !important;
+    color: #c9d1d9 !important;
+}
+
+/* Fix tables in dark mode */
+[data-theme="dark"] .table {
+    background-color: #0d1117 !important;
+    color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) {
+    background-color: #161b22 !important;
+}
+
+[data-theme="dark"] .table-hover > tbody > tr:hover {
+    background-color: #21262d !important;
+}
+
+[data-theme="dark"] .table th,
+[data-theme="dark"] .table td {
+    border-color: #30363d !important;
+}
+
+/* Fix forms in dark mode */
+[data-theme="dark"] .form-control {
+    background-color: #0d1117 !important;
+    border-color: #30363d !important;
+    color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .form-control:focus {
+    background-color: #0d1117 !important;
+    border-color: #58a6ff !important;
+    color: #c9d1d9 !important;
+    box-shadow: 0 0 0 0.2rem rgba(88, 166, 255, 0.25) !important;
+}
+
+[data-theme="dark"] .form-control::placeholder {
+    color: #6e7681 !important;
+}
+
+/* Fix modals in dark mode */
+[data-theme="dark"] .modal-content {
+    background-color: #161b22 !important;
+    border-color: #30363d !important;
+    color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .modal-header {
+    background-color: #21262d !important;
+    border-color: #30363d !important;
+}
+
+[data-theme="dark"] .modal-footer {
+    background-color: #21262d !important;
+    border-color: #30363d !important;
+}
+
+/* Fix dropdowns in dark mode */
+[data-theme="dark"] .dropdown-menu {
+    background-color: #161b22 !important;
+    border-color: #30363d !important;
+}
+
+[data-theme="dark"] .dropdown-menu > li > a {
+    color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .dropdown-menu > li > a:hover,
+[data-theme="dark"] .dropdown-menu > li > a:focus {
+    background-color: #21262d !important;
+    color: #ffffff !important;
+}
+
+/* Fix wells and other containers */
+[data-theme="dark"] .well {
+    background-color: #161b22 !important;
+    border-color: #30363d !important;
+    color: #c9d1d9 !important;
+}
+
+/* Auto dark mode detection overrides */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .navbar-inverse {
+        background-color: #161b22 !important;
+        border-color: #30363d !important;
+    }
+    
+    :root:not([data-theme="light"]) .sidebar {
+        background-color: #0d1117 !important;
+        border-color: #30363d !important;
+    }
+    
+    :root:not([data-theme="light"]) body {
+        background-color: #0d1117 !important;
+        color: #c9d1d9 !important;
+    }
 }
