@@ -1,66 +1,73 @@
-![gophish logo](https://raw.github.com/gophish/gophish/master/static/images/gophish_purple.png)
+# PhishHook
 
-Gophish
-=======
+Enhanced GoPhish fork with evasion capabilities for professional red team operations.
 
-![Build Status](https://github.com/gophish/gophish/workflows/CI/badge.svg) [![GoDoc](https://godoc.org/github.com/gophish/gophish?status.svg)](https://godoc.org/github.com/gophish/gophish)
+## Features
 
-Gophish: Open-Source Phishing Toolkit
+PhishHook extends GoPhish with:
 
-[Gophish](https://getgophish.com) is an open-source phishing toolkit designed for businesses and penetration testers. It provides the ability to quickly and easily setup and execute phishing engagements and security awareness training.
+- **Cloudflare Turnstile Integration**: Presents a Cloudflare challenge page before serving phishing content, evading automated scanners and security tools
+- **Header Evasion**: Strips identifying headers (`X-Server: gophish`, etc.) that fingerprint the server
+- **All GoPhish Features**: Full compatibility with upstream GoPhish functionality
 
-### Install
+## Building
 
-Installation of Gophish is dead-simple - just download and extract the zip containing the [release for your system](https://github.com/gophish/gophish/releases/), and run the binary. Gophish has binary releases for Windows, Mac, and Linux platforms.
-
-### Building From Source
-**If you are building from source, please note that Gophish requires Go v1.10 or above!**
-
-To build Gophish from source, simply run ```git clone https://github.com/gophish/gophish.git``` and ```cd``` into the project source directory. Then, run ```go build```. After this, you should have a binary called ```gophish``` in the current directory.
-
-### Docker
-You can also use Gophish via the official Docker container [here](https://hub.docker.com/r/gophish/gophish/).
-
-### Setup
-After running the Gophish binary, open an Internet browser to https://localhost:3333 and login with the default username and password listed in the log output.
-e.g.
-```
-time="2020-07-29T01:24:08Z" level=info msg="Please login with the username admin and the password 4304d5255378177d"
+```bash
+go build
 ```
 
-Releases of Gophish prior to v0.10.1 have a default username of `admin` and password of `gophish`.
+## Configuration
 
-### Documentation
+Add to your `config.json`:
 
-Documentation can be found on our [site](http://getgophish.com/documentation). Find something missing? Let us know by filing an issue!
-
-### Issues
-
-Find a bug? Want more features? Find something missing in the documentation? Let us know! Please don't hesitate to [file an issue](https://github.com/gophish/gophish/issues/new) and we'll get right on it.
-
-### License
+```json
+{
+  "admin_server": { ... },
+  "phish_server": { ... },
+  "turnstile": {
+    "enabled": true,
+    "site_key": "YOUR_CLOUDFLARE_SITE_KEY",
+    "secret_key": "YOUR_CLOUDFLARE_SECRET_KEY",
+    "cookie_secret": "random-32-char-secret"
+  },
+  "evasion": {
+    "enabled": true,
+    "strip_server_header": false,
+    "custom_server_name": "IGNORE"
+  }
+}
 ```
-Gophish - Open-Source Phishing Framework
 
-The MIT License (MIT)
+### Turnstile Setup
 
-Copyright (c) 2013 - 2020 Jordan Wright
+1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) > Turnstile
+2. Create a new widget for your phishing domain
+3. Copy the Site Key and Secret Key to config.json
+4. Generate a random cookie_secret (32+ characters)
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software ("Gophish Community Edition") and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+### Evasion Options
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+| Option | Description |
+|--------|-------------|
+| `enabled` | Enable/disable evasion middleware |
+| `strip_server_header` | Remove X-Server header entirely |
+| `custom_server_name` | Custom value for X-Server header (default: "IGNORE") |
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+## Usage
+
+Same as GoPhish:
+
+```bash
+./gophish
 ```
+
+Admin panel: https://localhost:3333
+Phishing server: http://localhost:80
+
+## License
+
+MIT License - Based on [GoPhish](https://github.com/gophish/gophish) by Jordan Wright
+
+## Disclaimer
+
+This tool is intended for authorized security testing and red team operations only. Ensure you have proper authorization before use.

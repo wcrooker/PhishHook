@@ -26,17 +26,34 @@ type PhishServer struct {
 	KeyPath   string `json:"key_path"`
 }
 
+// TurnstileConfig holds Cloudflare Turnstile configuration
+type TurnstileConfig struct {
+	Enabled      bool   `json:"enabled"`
+	SiteKey      string `json:"site_key"`
+	SecretKey    string `json:"secret_key"`
+	CookieSecret string `json:"cookie_secret"`
+}
+
+// EvasionConfig holds evasion middleware configuration
+type EvasionConfig struct {
+	Enabled           bool   `json:"enabled"`
+	StripServerHeader bool   `json:"strip_server_header"`
+	CustomServerName  string `json:"custom_server_name"`
+}
+
 // Config represents the configuration information.
 type Config struct {
-	AdminConf      AdminServer `json:"admin_server"`
-	PhishConf      PhishServer `json:"phish_server"`
-	DBName         string      `json:"db_name"`
-	DBPath         string      `json:"db_path"`
-	DBSSLCaPath    string      `json:"db_sslca_path"`
-	MigrationsPath string      `json:"migrations_prefix"`
-	TestFlag       bool        `json:"test_flag"`
-	ContactAddress string      `json:"contact_address"`
-	Logging        *log.Config `json:"logging"`
+	AdminConf      AdminServer      `json:"admin_server"`
+	PhishConf      PhishServer      `json:"phish_server"`
+	DBName         string           `json:"db_name"`
+	DBPath         string           `json:"db_path"`
+	DBSSLCaPath    string           `json:"db_sslca_path"`
+	MigrationsPath string           `json:"migrations_prefix"`
+	TestFlag       bool             `json:"test_flag"`
+	ContactAddress string           `json:"contact_address"`
+	Logging        *log.Config      `json:"logging"`
+	Turnstile      *TurnstileConfig `json:"turnstile,omitempty"`
+	Evasion        *EvasionConfig   `json:"evasion,omitempty"`
 }
 
 // Version contains the current gophish version

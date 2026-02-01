@@ -14,6 +14,7 @@ import (
 	"github.com/gophish/gophish/config"
 	ctx "github.com/gophish/gophish/context"
 	"github.com/gophish/gophish/controllers/api"
+	"github.com/gophish/gophish/evasion"
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
 	"github.com/gophish/gophish/util"
@@ -46,12 +47,41 @@ const TransparencySuffix = "+"
 // the phishing server
 type PhishingServerOption func(*PhishingServer)
 
+// WithTurnstile configures Cloudflare Turnstile protection
+func WithTurnstile(cfg *config.TurnstileConfig) PhishingServerOption {
+	return func(ps *PhishingServer) {
+		if cfg != nil && cfg.Enabled {
+			ps.turnstileMiddleware = evasion.NewTurnstileMiddleware(&evasion.TurnstileConfig{
+				Enabled:      cfg.Enabled,
+				SiteKey:      cfg.SiteKey,
+				SecretKey:    cfg.SecretKey,
+				CookieSecret: cfg.CookieSecret,
+			})
+		}
+	}
+}
+
+// WithEvasion configures evasion middleware
+func WithEvasion(cfg *config.EvasionConfig) PhishingServerOption {
+	return func(ps *PhishingServer) {
+		if cfg != nil && cfg.Enabled {
+			ps.evasionMiddleware = evasion.NewEvasionMiddleware(&evasion.EvasionConfig{
+				Enabled:           cfg.Enabled,
+				StripServerHeader: cfg.StripServerHeader,
+				CustomServerName:  cfg.CustomServerName,
+			})
+		}
+	}
+}
+
 // PhishingServer is an HTTP server that implements the campaign event
 // handlers, such as email open tracking, click tracking, and more.
 type PhishingServer struct {
-	server         *http.Server
-	config         config.PhishServer
-	contactAddress string
+	server              *http.Server
+	config              config.PhishServer
+	contactAddress      string
+	turnstileMiddleware *evasion.TurnstileMiddleware
+	evasionMiddleware   *evasion.EvasionMiddleware
 }
 
 // NewPhishingServer returns a new instance of the phishing server with
@@ -200,16 +230,35 @@ func (ps *PhishingServer) ReportHandler(w http.ResponseWriter, r *http.Request) 
 // PhishHandler handles incoming client connections and registers the associated actions performed
 // (such as clicked link, etc.)
 func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
+	if ps.turnstileMiddleware != nil && ps.turnstileMiddleware.IsEnabled() {
+		if r.Method == http.MethodPost && r.FormValue("cf-turnstile-response") != "" {
+			if ps.turnstileMiddleware.HandleVerification(w, r) {
+				return
+			}
+		}
+		if !ps.turnstileMiddleware.HasValidSession(r) {
+			ps.turnstileMiddleware.ServeChallengePage(w, r)
+			return
+		}
+	}
+
 	r, err := setupContext(r)
 	if err != nil {
-		// Log the error if it wasn't something we can safely ignore
 		if err != ErrInvalidRequest && err != ErrCampaignComplete {
 			log.Error(err)
 		}
 		http.NotFound(w, r)
 		return
 	}
-	w.Header().Set("X-Server", config.ServerName) // Useful for checking if this is a GoPhish server (e.g. for campaign reporting plugins)
+
+	if ps.evasionMiddleware != nil && ps.evasionMiddleware.IsEnabled() {
+		serverName := ps.evasionMiddleware.GetServerName()
+		if serverName != "" {
+			w.Header().Set("X-Server", serverName)
+		}
+	} else {
+		w.Header().Set("X-Server", config.ServerName)
+	}
 	var ptx models.PhishingTemplateContext
 	// Check for a preview
 	if preview, ok := ctx.Get(r, "result").(models.EmailRequest); ok {

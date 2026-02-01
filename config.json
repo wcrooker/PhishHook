@@ -19,5 +19,16 @@
 	"logging": {
 		"filename": "",
 		"level": ""
+	},
+	"turnstile": {
+		"enabled": false,
+		"site_key": "",
+		"secret_key": "",
+		"cookie_secret": ""
+	},
+	"evasion": {
+		"enabled": true,
+		"strip_server_header": false,
+		"custom_server_name": "IGNORE"
 	}
 }
