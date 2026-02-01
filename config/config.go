@@ -27,7 +27,6 @@ type PhishServer struct {
 	Domain    string `json:"-"` // Set via CLI flag, not config file
 }
 
-// TurnstileConfig holds Cloudflare Turnstile configuration
 type TurnstileConfig struct {
 	Enabled      bool   `json:"enabled"`
 	SiteKey      string `json:"site_key"`
@@ -35,26 +34,35 @@ type TurnstileConfig struct {
 	CookieSecret string `json:"cookie_secret"`
 }
 
-// EvasionConfig holds evasion middleware configuration
 type EvasionConfig struct {
 	Enabled           bool   `json:"enabled"`
 	StripServerHeader bool   `json:"strip_server_header"`
 	CustomServerName  string `json:"custom_server_name"`
 }
 
-// Config represents the configuration information.
+type BehavioralConfig struct {
+	Enabled              bool     `json:"enabled"`
+	MinTimeOnPage        int      `json:"min_time_on_page_ms"`
+	RequireMouseMovement bool     `json:"require_mouse_movement"`
+	RequireInteraction   bool     `json:"require_interaction"`
+	BlockMicrosoftIPs    bool     `json:"block_microsoft_ips"`
+	CustomBlockedCIDRs   []string `json:"custom_blocked_cidrs"`
+	MaxRequestsPerMinute int      `json:"max_requests_per_minute"`
+}
+
 type Config struct {
-	AdminConf      AdminServer      `json:"admin_server"`
-	PhishConf      PhishServer      `json:"phish_server"`
-	DBName         string           `json:"db_name"`
-	DBPath         string           `json:"db_path"`
-	DBSSLCaPath    string           `json:"db_sslca_path"`
-	MigrationsPath string           `json:"migrations_prefix"`
-	TestFlag       bool             `json:"test_flag"`
-	ContactAddress string           `json:"contact_address"`
-	Logging        *log.Config      `json:"logging"`
-	Turnstile      *TurnstileConfig `json:"turnstile,omitempty"`
-	Evasion        *EvasionConfig   `json:"evasion,omitempty"`
+	AdminConf      AdminServer       `json:"admin_server"`
+	PhishConf      PhishServer       `json:"phish_server"`
+	DBName         string            `json:"db_name"`
+	DBPath         string            `json:"db_path"`
+	DBSSLCaPath    string            `json:"db_sslca_path"`
+	MigrationsPath string            `json:"migrations_prefix"`
+	TestFlag       bool              `json:"test_flag"`
+	ContactAddress string            `json:"contact_address"`
+	Logging        *log.Config       `json:"logging"`
+	Turnstile      *TurnstileConfig  `json:"turnstile,omitempty"`
+	Evasion        *EvasionConfig    `json:"evasion,omitempty"`
+	Behavioral     *BehavioralConfig `json:"behavioral,omitempty"`
 }
 
 // Version contains the current gophish version

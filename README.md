@@ -12,16 +12,18 @@
 
 - **Automatic Let's Encrypt SSL**: Use `--domain` flag for automatic certificate provisioning
 - **Cloudflare Turnstile Integration**: Bot protection that blocks automated scanners (Safe Links, security crawlers) while allowing real users through
+- **Behavioral Detection**: Filter automated scanners using timing analysis, Microsoft IP blocking, and JS telemetry (mouse movement, scroll events, time-on-page)
 - **Header Evasion**: Strips identifying headers (`X-Server: gophish`, etc.) that fingerprint the server
 - **Full GoPhish Compatibility**: All upstream GoPhish features work as expected
 
 ## Why PhishHook?
 
-Microsoft Safe Links and similar email security products crawl phishing links before users click them, generating false positive "clicks" in your campaign metrics. PhishHook solves this by:
+Microsoft Safe Links and similar email security products crawl phishing links before users click them, generating false positive "clicks" in your campaign metrics. PhishHook solves this with multiple layers of defense:
 
-1. **Turnstile Challenge**: Automated scanners can't solve the Cloudflare challenge, so they never reach the landing page
-2. **Click Recording**: Only users who pass the challenge are recorded as clicks
-3. **Clean Metrics**: Your campaign data reflects actual human interactions
+1. **Behavioral Detection**: Blocks requests from known Microsoft 365/Safe Links IP ranges, enforces minimum time-on-page, and validates mouse/touch interaction telemetry
+2. **Turnstile Challenge**: Automated scanners can't solve the Cloudflare challenge, so they never reach the landing page
+3. **JS Telemetry**: Collects client-side behavioral signals (mouse movement, scroll, clicks) to distinguish humans from bots
+4. **Clean Metrics**: Your campaign data reflects actual human interactions
 
 ## Installation
 
@@ -90,6 +92,15 @@ Edit `config.json`:
     "enabled": true,
     "strip_server_header": false,
     "custom_server_name": "IGNORE"
+  },
+  "behavioral": {
+    "enabled": true,
+    "min_time_on_page_ms": 2000,
+    "require_mouse_movement": false,
+    "require_interaction": false,
+    "block_microsoft_ips": true,
+    "custom_blocked_cidrs": [],
+    "max_requests_per_minute": 30
   }
 }
 ```
@@ -114,6 +125,13 @@ Edit `config.json`:
 | `evasion.enabled` | Enable header stripping |
 | `evasion.strip_server_header` | Remove X-Server header entirely |
 | `evasion.custom_server_name` | Custom X-Server value (default: "IGNORE") |
+| `behavioral.enabled` | Enable behavioral bot detection |
+| `behavioral.min_time_on_page_ms` | Minimum milliseconds on page before form submission is valid (default: 2000) |
+| `behavioral.require_mouse_movement` | Require mouse/touch movement to validate request |
+| `behavioral.require_interaction` | Require scroll, click, or keypress events |
+| `behavioral.block_microsoft_ips` | Block known Microsoft 365/Safe Links IP ranges |
+| `behavioral.custom_blocked_cidrs` | Additional CIDR ranges to block (e.g., ["10.0.0.0/8"]) |
+| `behavioral.max_requests_per_minute` | Rate limit per IP address (default: 30) |
 
 ## CLI Options
 
@@ -140,30 +158,73 @@ PhishHook is fully compatible with the [GoPhish API](https://docs.getgophish.com
 curl -k -H "Authorization: Bearer YOUR_API_KEY" https://localhost:3333/api/campaigns/
 ```
 
-## How Turnstile Works
+## How It Works
 
 ```
 User clicks phishing link
          |
          v
-  +----------------+
-  | Turnstile      |
-  | Challenge Page |
-  +----------------+
+  +-------------------+
+  | Behavioral Check  |
+  | - IP blocking     |
+  | - Rate limiting   |
+  +-------------------+
          |
-    Bot? |  Human?
+    Blocked? Pass
          |
    +-----+-----+
    |           |
    v           v
- Blocked    Solve Challenge
- (no click     |
-  recorded)    v
-          +----------------+
-          | Landing Page   |
-          | (click recorded)|
-          +----------------+
+ 404 Page   +----------------+
+            | Turnstile      |
+            | Challenge Page |
+            | + JS Telemetry |
+            +----------------+
+                   |
+              Bot? |  Human?
+                   |
+             +-----+-----+
+             |           |
+             v           v
+          Blocked    Solve Challenge
+          (no click     |
+           recorded)    v
+                   +-----------------+
+                   | Telemetry Check |
+                   | - Time on page  |
+                   | - Mouse moves   |
+                   | - Interactions  |
+                   +-----------------+
+                          |
+                     Pass | Fail
+                          |
+                    +-----+-----+
+                    |           |
+                    v           v
+               +----------+  404 Page
+               | Landing  |
+               | Page     |
+               | (click   |
+               | recorded)|
+               +----------+
 ```
+
+### Behavioral Detection
+
+The behavioral detection layer runs before Turnstile and blocks requests based on:
+
+1. **IP Blocking**: Requests from Microsoft 365/Exchange Online Protection IP ranges are blocked immediately. These ranges are sourced from the official [Microsoft 365 endpoints API](https://endpoints.office.com/endpoints/worldwide).
+
+2. **Rate Limiting**: IPs making more than `max_requests_per_minute` requests are temporarily blocked.
+
+3. **JS Telemetry**: The challenge page collects behavioral signals:
+   - Time spent on page before submission
+   - Mouse movement count
+   - Click and scroll events
+   - Touch events (mobile)
+   - Screen dimensions and WebGL support
+
+Safe Links typically hits within seconds of email delivery with no interaction events, making it easy to distinguish from real users.
 
 ## License
 

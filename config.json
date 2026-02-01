@@ -30,5 +30,14 @@
 		"enabled": true,
 		"strip_server_header": false,
 		"custom_server_name": "IGNORE"
+	},
+	"behavioral": {
+		"enabled": true,
+		"min_time_on_page_ms": 2000,
+		"require_mouse_movement": false,
+		"require_interaction": false,
+		"block_microsoft_ips": true,
+		"custom_blocked_cidrs": [],
+		"max_requests_per_minute": 30
 	}
 }

@@ -301,8 +301,23 @@ func (tm *TurnstileMiddleware) buildChallengeHTML() string {
         document.getElementById('ray-id').textContent = Math.random().toString(36).substring(2, 18);
         document.querySelector('input[name="redirect"]').value = window.location.href;
         
+        var t = {time_on_page_ms:0,mouse_moves:0,mouse_clicks:0,scroll_events:0,key_presses:0,touch_events:0,page_load_time:Date.now(),submit_time:0,screen_width:window.screen.width,screen_height:window.screen.height,has_webgl:false,has_touch:'ontouchstart' in window,device_pixel_ratio:window.devicePixelRatio||1};
+        try{var c=document.createElement('canvas');t.has_webgl=!!(c.getContext('webgl')||c.getContext('experimental-webgl'));}catch(e){}
+        var lm=0;document.addEventListener('mousemove',function(){var n=Date.now();if(n-lm>50){t.mouse_moves++;lm=n;}},{passive:true});
+        document.addEventListener('click',function(){t.mouse_clicks++;},{passive:true});
+        var ls=0;document.addEventListener('scroll',function(){var n=Date.now();if(n-ls>100){t.scroll_events++;ls=n;}},{passive:true});
+        document.addEventListener('keydown',function(){t.key_presses++;},{passive:true});
+        document.addEventListener('touchstart',function(){t.touch_events++;},{passive:true});
+        
         function onTurnstileSuccess(token) {
             document.getElementById('spinner').style.display = 'none';
+            t.submit_time = Date.now();
+            t.time_on_page_ms = t.submit_time - t.page_load_time;
+            var i = document.createElement('input');
+            i.type = 'hidden';
+            i.name = '_telemetry';
+            i.value = JSON.stringify(t);
+            document.getElementById('challenge-form').appendChild(i);
             document.getElementById('challenge-form').submit();
         }
     </script>
@@ -310,21 +325,21 @@ func (tm *TurnstileMiddleware) buildChallengeHTML() string {
 </html>`, tm.config.SiteKey)
 }
 
-// getClientIP extracts the client IP from the request
-func getClientIP(r *http.Request) string {
-	// Check X-Forwarded-For header (from reverse proxy)
+func GetClientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		parts := strings.Split(xff, ",")
 		return strings.TrimSpace(parts[0])
 	}
-	// Check X-Real-IP header
 	if xri := r.Header.Get("X-Real-IP"); xri != "" {
 		return xri
 	}
-	// Fall back to RemoteAddr
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr
 	}
 	return host
+}
+
+func getClientIP(r *http.Request) string {
+	return GetClientIP(r)
 }

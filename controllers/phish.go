@@ -63,7 +63,6 @@ func WithTurnstile(cfg *config.TurnstileConfig) PhishingServerOption {
 	}
 }
 
-// WithEvasion configures evasion middleware
 func WithEvasion(cfg *config.EvasionConfig) PhishingServerOption {
 	return func(ps *PhishingServer) {
 		if cfg != nil && cfg.Enabled {
@@ -76,14 +75,29 @@ func WithEvasion(cfg *config.EvasionConfig) PhishingServerOption {
 	}
 }
 
-// PhishingServer is an HTTP server that implements the campaign event
-// handlers, such as email open tracking, click tracking, and more.
+func WithBehavioral(cfg *config.BehavioralConfig) PhishingServerOption {
+	return func(ps *PhishingServer) {
+		if cfg != nil && cfg.Enabled {
+			ps.behavioralMiddleware = evasion.NewBehavioralMiddleware(&evasion.BehavioralConfig{
+				Enabled:              cfg.Enabled,
+				MinTimeOnPage:        cfg.MinTimeOnPage,
+				RequireMouseMovement: cfg.RequireMouseMovement,
+				RequireInteraction:   cfg.RequireInteraction,
+				BlockMicrosoftIPs:    cfg.BlockMicrosoftIPs,
+				CustomBlockedCIDRs:   cfg.CustomBlockedCIDRs,
+				MaxRequestsPerMinute: cfg.MaxRequestsPerMinute,
+			})
+		}
+	}
+}
+
 type PhishingServer struct {
-	server              *http.Server
-	config              config.PhishServer
-	contactAddress      string
-	turnstileMiddleware *evasion.TurnstileMiddleware
-	evasionMiddleware   *evasion.EvasionMiddleware
+	server               *http.Server
+	config               config.PhishServer
+	contactAddress       string
+	turnstileMiddleware  *evasion.TurnstileMiddleware
+	evasionMiddleware    *evasion.EvasionMiddleware
+	behavioralMiddleware *evasion.BehavioralMiddleware
 }
 
 // NewPhishingServer returns a new instance of the phishing server with
@@ -261,9 +275,15 @@ func (ps *PhishingServer) ReportHandler(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// PhishHandler handles incoming client connections and registers the associated actions performed
-// (such as clicked link, etc.)
 func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
+	if ps.behavioralMiddleware != nil && ps.behavioralMiddleware.IsEnabled() {
+		if blocked, reason := ps.behavioralMiddleware.ShouldBlock(r); blocked {
+			log.Infof("Blocked request from %s: %s", evasion.GetClientIP(r), reason)
+			http.NotFound(w, r)
+			return
+		}
+	}
+
 	if ps.turnstileMiddleware != nil && ps.turnstileMiddleware.IsEnabled() {
 		if r.Method == http.MethodPost && r.FormValue("cf-turnstile-response") != "" {
 			if ps.turnstileMiddleware.HandleVerification(w, r) {
