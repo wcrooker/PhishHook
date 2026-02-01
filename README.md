@@ -6,6 +6,7 @@ Enhanced GoPhish fork with evasion capabilities for professional red team operat
 
 PhishHook extends GoPhish with:
 
+- **Automatic Let's Encrypt SSL**: Use `--domain` flag for automatic certificate provisioning
 - **Cloudflare Turnstile Integration**: Presents a Cloudflare challenge page before serving phishing content, evading automated scanners and security tools
 - **Header Evasion**: Strips identifying headers (`X-Server: gophish`, etc.) that fingerprint the server
 - **All GoPhish Features**: Full compatibility with upstream GoPhish functionality
@@ -55,14 +56,38 @@ Add to your `config.json`:
 
 ## Usage
 
-Same as GoPhish:
+### Basic (Self-Signed SSL)
 
 ```bash
 ./gophish
 ```
 
-Admin panel: https://localhost:3333
-Phishing server: http://localhost:80
+### With Let's Encrypt (Recommended for Production)
+
+```bash
+./gophish --domain phish.example.com
+```
+
+This will:
+1. Start an HTTP server on port 80 for ACME challenges
+2. Automatically obtain a Let's Encrypt certificate for your domain
+3. Start the phishing server on port 443 with valid SSL
+4. Store certificates in the `certs/` directory
+
+**Requirements:**
+- Ports 80 and 443 must be open and accessible from the internet
+- DNS must be configured to point to your server
+- Run as root or use `setcap` for binding to privileged ports
+
+```bash
+# Allow binding to ports 80/443 without root
+sudo setcap 'cap_net_bind_service=+ep' ./gophish
+```
+
+### Endpoints
+
+- Admin panel: https://localhost:3333
+- Phishing server: https://your-domain:443 (with --domain) or https://localhost:443 (self-signed)
 
 ## License
 

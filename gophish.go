@@ -55,6 +55,7 @@ var (
 	disableMailer = kingpin.Flag("disable-mailer", "Disable the mailer (for use with multi-system deployments)").Bool()
 	mode          = kingpin.Flag("mode", fmt.Sprintf("Run the binary in one of the modes (%s, %s or %s)", modeAll, modeAdmin, modePhish)).
 			Default("all").Enum(modeAll, modeAdmin, modePhish)
+	domain = kingpin.Flag("domain", "Domain for automatic Let's Encrypt SSL (e.g., phish.example.com)").String()
 )
 
 func main() {
@@ -118,6 +119,10 @@ func main() {
 	middleware.Store.Options.Secure = adminConfig.UseTLS
 
 	phishConfig := conf.PhishConf
+	if *domain != "" {
+		phishConfig.Domain = *domain
+		log.Infof("Let's Encrypt enabled for domain: %s", *domain)
+	}
 	phishOptions := []controllers.PhishingServerOption{}
 	if conf.Turnstile != nil {
 		phishOptions = append(phishOptions, controllers.WithTurnstile(conf.Turnstile))

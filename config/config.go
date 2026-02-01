@@ -24,6 +24,7 @@ type PhishServer struct {
 	UseTLS    bool   `json:"use_tls"`
 	CertPath  string `json:"cert_path"`
 	KeyPath   string `json:"key_path"`
+	Domain    string `json:"-"` // Set via CLI flag, not config file
 }
 
 // TurnstileConfig holds Cloudflare Turnstile configuration

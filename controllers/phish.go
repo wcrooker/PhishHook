@@ -3,6 +3,7 @@ package controllers
 import (
 	"compress/gzip"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -21,6 +22,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/jordan-wright/unindexed"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 // ErrInvalidRequest is thrown when a request with an invalid structure is
@@ -113,8 +115,12 @@ func WithContactAddress(addr string) PhishingServerOption {
 
 // Start launches the phishing server, listening on the configured address.
 func (ps *PhishingServer) Start() {
+	if ps.config.Domain != "" {
+		ps.startWithAutocert()
+		return
+	}
+
 	if ps.config.UseTLS {
-		// Only support TLS 1.2 and above - ref #1691, #1689
 		ps.server.TLSConfig = defaultTLSConfig
 		err := util.CheckAndCreateSSL(ps.config.CertPath, ps.config.KeyPath)
 		if err != nil {
@@ -123,9 +129,37 @@ func (ps *PhishingServer) Start() {
 		log.Infof("Starting phishing server at https://%s", ps.config.ListenURL)
 		log.Fatal(ps.server.ListenAndServeTLS(ps.config.CertPath, ps.config.KeyPath))
 	}
-	// If TLS isn't configured, just listen on HTTP
 	log.Infof("Starting phishing server at http://%s", ps.config.ListenURL)
 	log.Fatal(ps.server.ListenAndServe())
+}
+
+func (ps *PhishingServer) startWithAutocert() {
+	certManager := &autocert.Manager{
+		Prompt:     autocert.AcceptTOS,
+		HostPolicy: autocert.HostWhitelist(ps.config.Domain),
+		Cache:      autocert.DirCache("certs"),
+	}
+
+	ps.server.TLSConfig = &tls.Config{
+		GetCertificate: certManager.GetCertificate,
+		MinVersion:     tls.VersionTLS12,
+	}
+
+	go func() {
+		log.Info("Starting HTTP server on :80 for ACME challenges")
+		httpServer := &http.Server{
+			Addr:         ":80",
+			Handler:      certManager.HTTPHandler(nil),
+			ReadTimeout:  10 * time.Second,
+			WriteTimeout: 10 * time.Second,
+		}
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Errorf("HTTP challenge server error: %v", err)
+		}
+	}()
+
+	log.Infof("Starting phishing server with Let's Encrypt at https://%s", ps.config.Domain)
+	log.Fatal(ps.server.ListenAndServeTLS("", ""))
 }
 
 // Shutdown attempts to gracefully shutdown the server.
