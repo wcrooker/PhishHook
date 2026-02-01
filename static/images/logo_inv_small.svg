@@ -1,0 +1,41 @@
+<svg width="32" height="32" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hookGradientWhite" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e5e7eb;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Hook body -->
+  <path d="M 32 20 
+           Q 32 12, 40 12
+           L 80 12
+           Q 88 12, 88 20
+           L 88 60
+           Q 88 80, 68 80
+           Q 48 80, 48 60
+           Q 48 52, 56 52
+           Q 64 52, 64 60
+           Q 64 68, 56 68
+           L 52 68" 
+        fill="url(#hookGradientWhite)" 
+        stroke="#d1d5db" 
+        stroke-width="2"/>
+  
+  <!-- Hook point -->
+  <path d="M 52 68 
+           L 44 76
+           Q 40 80, 36 76
+           Q 32 72, 36 68
+           L 44 60" 
+        fill="url(#hookGradientWhite)" 
+        stroke="#d1d5db" 
+        stroke-width="2"/>
+  
+  <!-- Eye of the hook -->
+  <circle cx="60" cy="20" r="6" fill="#0891b2" stroke="#d1d5db" stroke-width="2"/>
+  <circle cx="60" cy="20" r="3" fill="#ffffff"/>
+  
+  <!-- Decorative line detail -->
+  <line x1="40" y1="20" x2="80" y2="20" stroke="#0891b2" stroke-width="1" opacity="0.8"/>
+</svg>

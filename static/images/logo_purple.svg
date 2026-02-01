@@ -1,0 +1,46 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hookGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0891b2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0e7490;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Hook body -->
+  <path d="M 32 20 
+           Q 32 12, 40 12
+           L 80 12
+           Q 88 12, 88 20
+           L 88 60
+           Q 88 80, 68 80
+           Q 48 80, 48 60
+           Q 48 52, 56 52
+           Q 64 52, 64 60
+           Q 64 68, 56 68
+           L 52 68" 
+        fill="url(#hookGradient)" 
+        stroke="#155e75" 
+        stroke-width="2" 
+        filter="url(#shadow)"/>
+  
+  <!-- Hook point -->
+  <path d="M 52 68 
+           L 44 76
+           Q 40 80, 36 76
+           Q 32 72, 36 68
+           L 44 60" 
+        fill="url(#hookGradient)" 
+        stroke="#155e75" 
+        stroke-width="2" 
+        filter="url(#shadow)"/>
+  
+  <!-- Eye of the hook -->
+  <circle cx="60" cy="20" r="6" fill="#ffffff" stroke="#155e75" stroke-width="2"/>
+  <circle cx="60" cy="20" r="3" fill="#0e7490"/>
+  
+  <!-- Decorative line detail -->
+  <line x1="40" y1="20" x2="80" y2="20" stroke="#ffffff" stroke-width="1" opacity="0.6"/>
+</svg>

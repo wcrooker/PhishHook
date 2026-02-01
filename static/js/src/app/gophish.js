@@ -309,4 +309,71 @@ $(document).ready(function () {
     $.fn.dataTable.moment('MMMM Do YYYY, h:mm:ss a');
     // Setup tooltips
     $('[data-toggle="tooltip"]').tooltip()
+    
+    initializeThemeSystem();
 });
+
+function initializeThemeSystem() {
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeIcon = document.getElementById('theme-icon');
+    const themeText = document.getElementById('theme-text');
+    
+    if (!themeToggle) return;
+    
+    const savedTheme = localStorage.getItem('phishhook-theme');
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    let currentTheme;
+    if (savedTheme) {
+        currentTheme = savedTheme;
+    } else {
+        currentTheme = systemPrefersDark ? 'dark' : 'light';
+    }
+    
+    applyTheme(currentTheme);
+    updateThemeButtonDisplay(currentTheme);
+    
+    themeToggle.addEventListener('click', function() {
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        currentTheme = newTheme;
+        applyTheme(newTheme);
+        updateThemeButtonDisplay(newTheme);
+        localStorage.setItem('phishhook-theme', newTheme);
+    });
+    
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+        if (!localStorage.getItem('phishhook-theme')) {
+            const newTheme = e.matches ? 'dark' : 'light';
+            currentTheme = newTheme;
+            applyTheme(newTheme);
+            updateThemeButtonDisplay(newTheme);
+        }
+    });
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    
+    if ($.fn.DataTable) {
+        $('.dataTable').each(function() {
+            if ($.fn.DataTable.isDataTable(this)) {
+                $(this).DataTable().draw(false);
+            }
+        });
+    }
+}
+
+function updateThemeButtonDisplay(theme) {
+    const themeIcon = document.getElementById('theme-icon');
+    const themeText = document.getElementById('theme-text');
+    
+    if (!themeIcon || !themeText) return;
+    
+    if (theme === 'dark') {
+        themeIcon.className = 'fa fa-sun-o';
+        themeText.textContent = 'Light';
+    } else {
+        themeIcon.className = 'fa fa-moon-o';
+        themeText.textContent = 'Dark';
+    }
+}

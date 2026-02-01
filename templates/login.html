@@ -32,6 +32,12 @@
             <div class="navbar-collapse collapse">
                 <ul class="nav navbar-nav navbar-right">
                     <li>
+                        <button type="button" class="theme-toggle" id="theme-toggle" title="Toggle dark mode">
+                            <i class="fa fa-moon-o" id="theme-icon"></i>
+                            <span id="theme-text">Dark</span>
+                        </button>
+                    </li>
+                    <li>
                         <a id="login-button" href="/login">
                             <button type="button" class="btn btn-primary">Login</button>
                         </a>
@@ -53,6 +59,51 @@
     </div>
     <!-- Placed at the end of the document so the pages load faster -->
     <script src="/js/dist/vendor.min.js"></script>
+    <script>
+        // Theme toggle for login page
+        (function() {
+            var themeToggle = document.getElementById('theme-toggle');
+            var themeIcon = document.getElementById('theme-icon');
+            var themeText = document.getElementById('theme-text');
+            
+            if (!themeToggle) return;
+            
+            var savedTheme = localStorage.getItem('phishhook-theme');
+            var systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            var currentTheme;
+            
+            if (savedTheme) {
+                currentTheme = savedTheme;
+            } else {
+                currentTheme = systemPrefersDark ? 'dark' : 'light';
+            }
+            
+            applyTheme(currentTheme);
+            
+            themeToggle.addEventListener('click', function() {
+                var newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                currentTheme = newTheme;
+                applyTheme(newTheme);
+                localStorage.setItem('phishhook-theme', newTheme);
+            });
+            
+            function applyTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                updateThemeButtonDisplay(theme);
+            }
+            
+            function updateThemeButtonDisplay(theme) {
+                if (!themeIcon || !themeText) return;
+                if (theme === 'dark') {
+                    themeIcon.className = 'fa fa-sun-o';
+                    themeText.textContent = 'Light';
+                } else {
+                    themeIcon.className = 'fa fa-moon-o';
+                    themeText.textContent = 'Dark';
+                }
+            }
+        })();
+    </script>
 </body>
 
 </html>

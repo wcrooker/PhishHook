@@ -1,3 +1,130 @@
+/* CSS Variables for Theme Support */
+:root {
+    /* Light theme colors (default) */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #e9ecef;
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --text-muted: #868e96;
+    --border-color: #dee2e6;
+    --border-light: #e9ecef;
+    --link-color: #0891b2;
+    --link-hover: #0e7490;
+    --navbar-bg: #0e7490;
+    --navbar-border: #0891b2;
+    --sidebar-bg: #ffffff;
+    --sidebar-hover: #f8f9fa;
+    --modal-bg: #ffffff;
+    --modal-backdrop: rgba(0, 0, 0, 0.5);
+    --table-bg: #ffffff;
+    --table-stripe: #f8f9fa;
+    --table-hover: #e9ecef;
+    --input-bg: #ffffff;
+    --input-border: #ced4da;
+    --input-focus: #80bdff;
+    --btn-secondary-bg: #6c757d;
+    --btn-secondary-border: #6c757d;
+    --shadow: rgba(0, 0, 0, 0.15);
+}
+
+/* Dark theme colors */
+[data-theme="dark"] {
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #21262d;
+    --text-primary: #c9d1d9;
+    --text-secondary: #8b949e;
+    --text-muted: #6e7681;
+    --border-color: #30363d;
+    --border-light: #21262d;
+    --link-color: #58a6ff;
+    --link-hover: #79c0ff;
+    --navbar-bg: #161b22;
+    --navbar-border: #30363d;
+    --sidebar-bg: #0d1117;
+    --sidebar-hover: #161b22;
+    --modal-bg: #161b22;
+    --modal-backdrop: rgba(0, 0, 0, 0.8);
+    --table-bg: #0d1117;
+    --table-stripe: #161b22;
+    --table-hover: #21262d;
+    --input-bg: #0d1117;
+    --input-border: #30363d;
+    --input-focus: #58a6ff;
+    --btn-secondary-bg: #21262d;
+    --btn-secondary-border: #30363d;
+    --shadow: rgba(0, 0, 0, 0.3);
+}
+
+/* Auto dark mode detection */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg-primary: #0d1117;
+        --bg-secondary: #161b22;
+        --bg-tertiary: #21262d;
+        --text-primary: #c9d1d9;
+        --text-secondary: #8b949e;
+        --text-muted: #6e7681;
+        --border-color: #30363d;
+        --border-light: #21262d;
+        --link-color: #58a6ff;
+        --link-hover: #79c0ff;
+        --navbar-bg: #161b22;
+        --navbar-border: #30363d;
+        --sidebar-bg: #0d1117;
+        --sidebar-hover: #161b22;
+        --modal-bg: #161b22;
+        --modal-backdrop: rgba(0, 0, 0, 0.8);
+        --table-bg: #0d1117;
+        --table-stripe: #161b22;
+        --table-hover: #21262d;
+        --input-bg: #0d1117;
+        --input-border: #30363d;
+        --input-focus: #58a6ff;
+        --btn-secondary-bg: #21262d;
+        --btn-secondary-border: #30363d;
+        --shadow: rgba(0, 0, 0, 0.3);
+    }
+}
+
+/* Theme transition for smooth switching */
+* {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Apply theme variables to base elements */
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.container, .container-fluid {
+    background-color: var(--bg-primary);
+}
+
+/* Dark mode toggle button */
+.theme-toggle {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.theme-toggle:hover {
+    background-color: var(--bg-secondary);
+    border-color: var(--link-color);
+}
+
+.theme-toggle i {
+    margin-right: 5px;
+}
+
 .swal2-popup {
     font-size: 1.6rem !important;
   }
@@ -706,14 +833,23 @@ table.dataTable {
     background-color: #0891b2;
 }
 
-/* PhishHook Branding - Cyan/Blue Theme */
+/* PhishHook Branding - Cyan/Blue Theme with Dark Mode Support */
 .navbar-inverse {
-    background-color: #0e7490 !important;
-    border-color: #0891b2 !important;
+    background-color: var(--navbar-bg) !important;
+    border-color: var(--navbar-border) !important;
 }
 
 .navbar-inverse .navbar-brand {
     color: #ffffff !important;
+}
+
+.navbar-inverse .navbar-nav > li > a {
+    color: var(--text-primary) !important;
+}
+
+.navbar-inverse .navbar-nav > li > a:hover {
+    color: #ffffff !important;
+    background-color: var(--bg-secondary) !important;
 }
 
 .btn-primary {
@@ -726,8 +862,222 @@ table.dataTable {
     border-color: #155e75 !important;
 }
 
+.btn-secondary {
+    background-color: var(--btn-secondary-bg) !important;
+    border-color: var(--btn-secondary-border) !important;
+    color: var(--text-primary) !important;
+}
+
+.btn-secondary:hover {
+    background-color: var(--bg-tertiary) !important;
+    border-color: var(--border-color) !important;
+}
+
 .nav-sidebar>.active>a {
     background-color: #0891b2 !important;
+}
+
+/* Sidebar dark mode support */
+.sidebar {
+    background-color: var(--sidebar-bg);
+}
+
+.sidebar a {
+    color: var(--text-primary) !important;
+}
+
+.sidebar a:hover {
+    color: var(--link-hover) !important;
+    background-color: var(--sidebar-hover) !important;
+}
+
+/* Panel and card backgrounds */
+.panel, .panel-default {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+}
+
+.panel-heading {
+    background-color: var(--bg-tertiary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.panel-body {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* Modal dark mode support */
+.modal-content {
+    background-color: var(--modal-bg) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.modal-header {
+    background-color: var(--bg-tertiary) !important;
+    border-color: var(--border-color) !important;
+}
+
+.modal-footer {
+    background-color: var(--bg-tertiary) !important;
+    border-color: var(--border-color) !important;
+}
+
+.modal-backdrop {
+    background-color: var(--modal-backdrop) !important;
+}
+
+/* Form elements dark mode */
+.form-control {
+    background-color: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+    color: var(--text-primary) !important;
+}
+
+.form-control:focus {
+    border-color: var(--input-focus) !important;
+    box-shadow: 0 0 0 0.2rem rgba(88, 166, 255, 0.25) !important;
+}
+
+.form-control::placeholder {
+    color: var(--text-muted) !important;
+}
+
+/* Table dark mode support */
+.table {
+    background-color: var(--table-bg) !important;
+    color: var(--text-primary) !important;
+}
+
+.table > thead > tr > th {
+    background-color: var(--bg-tertiary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.table > tbody > tr > td {
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) {
+    background-color: var(--table-stripe) !important;
+}
+
+.table-hover > tbody > tr:hover {
+    background-color: var(--table-hover) !important;
+}
+
+/* DataTables dark mode support */
+.dataTables_wrapper {
+    color: var(--text-primary) !important;
+}
+
+.dataTables_info, .dataTables_length, .dataTables_filter {
+    color: var(--text-primary) !important;
+}
+
+.dataTables_filter input {
+    background-color: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+    color: var(--text-primary) !important;
+}
+
+.pagination > li > a, .pagination > li > span {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.pagination > li > a:hover {
+    background-color: var(--bg-tertiary) !important;
+    border-color: var(--border-color) !important;
+}
+
+.pagination > .active > a {
+    background-color: #0891b2 !important;
+    border-color: #0e7490 !important;
+}
+
+/* Alert dark mode support */
+.alert {
+    border-color: var(--border-color) !important;
+}
+
+.alert-success {
+    background-color: rgba(40, 167, 69, 0.1) !important;
+    border-color: rgba(40, 167, 69, 0.3) !important;
+    color: #28a745 !important;
+}
+
+.alert-danger {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+    border-color: rgba(220, 53, 69, 0.3) !important;
+    color: #dc3545 !important;
+}
+
+.alert-warning {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+    border-color: rgba(255, 193, 7, 0.3) !important;
+    color: #ffc107 !important;
+}
+
+.alert-info {
+    background-color: rgba(23, 162, 184, 0.1) !important;
+    border-color: rgba(23, 162, 184, 0.3) !important;
+    color: #17a2b8 !important;
+}
+
+/* Dropdown dark mode support */
+.dropdown-menu {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--border-color) !important;
+}
+
+.dropdown-menu > li > a {
+    color: var(--text-primary) !important;
+}
+
+.dropdown-menu > li > a:hover {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Well and other containers */
+.well {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Links */
+a {
+    color: var(--link-color) !important;
+}
+
+a:hover {
+    color: var(--link-hover) !important;
+}
+
+/* Text colors */
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+/* Border utilities */
+.border {
+    border-color: var(--border-color) !important;
+}
+
+/* Background utilities */
+.bg-light {
+    background-color: var(--bg-secondary) !important;
+}
+
+.bg-white {
+    background-color: var(--bg-primary) !important;
 }
 
 .nav-badge {

@@ -44,6 +44,12 @@
             <div class="navbar-collapse collapse">
                 <ul class="nav navbar-nav navbar-right">
                     <li>
+                        <button type="button" class="theme-toggle" id="theme-toggle" title="Toggle dark mode">
+                            <i class="fa fa-moon-o" id="theme-icon"></i>
+                            <span id="theme-text">Dark</span>
+                        </button>
+                    </li>
+                    <li>
                         {{if .User}}
                         <div class="btn-group" id="navbar-dropdown">
                             <a class="btn btn-primary" href="/settings"><i class="fa fa-user"></i> {{.User.Username}}</a>

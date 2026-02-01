@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="static/images/phishhook_logo.png" alt="PhishHook Logo" width="128">
+  <img src="static/images/logo_purple.png" alt="PhishHook Logo" width="128">
 </p>
 
 <h1 align="center">PhishHook</h1>
