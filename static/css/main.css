@@ -1205,6 +1205,34 @@ a:hover {
     vertical-align: middle !important;
 }
 
+/* Navbar user/logout button styling - improved readability */
+.navbar-btn-user,
+.navbar-btn-logout {
+    color: #ffffff !important;
+    font-weight: 500 !important;
+    font-family: 'Source Sans Pro', Helvetica, Arial, sans-serif !important;
+    font-size: 14px !important;
+    text-shadow: none !important;
+    letter-spacing: 0.3px !important;
+}
+
+.navbar-btn-user:hover,
+.navbar-btn-user:focus,
+.navbar-btn-logout:hover,
+.navbar-btn-logout:focus {
+    color: #ffffff !important;
+    background-color: #0e7490 !important;
+    border-color: #155e75 !important;
+}
+
+.navbar-btn-logout {
+    margin-left: 2px !important;
+}
+
+.navbar-btn-logout i {
+    margin-right: 4px;
+}
+
 /* Fix panels and cards in dark mode */
 [data-theme="dark"] .panel,
 [data-theme="dark"] .panel-default {
@@ -1315,5 +1343,126 @@ a:hover {
     :root:not([data-theme="light"]) body {
         background-color: #0d1117 !important;
         color: #c9d1d9 !important;
+    }
+}
+
+/* ========================================
+   HIGHCHARTS DARK MODE STYLING
+   Modern chart appearance with proper dark mode support
+   ======================================== */
+
+/* Chart container backgrounds for dark mode */
+[data-theme="dark"] .highcharts-background {
+    fill: #161b22 !important;
+}
+
+[data-theme="dark"] .highcharts-plot-background {
+    fill: #161b22 !important;
+}
+
+/* Chart title and subtitle */
+[data-theme="dark"] .highcharts-title,
+[data-theme="dark"] .highcharts-subtitle {
+    fill: #c9d1d9 !important;
+}
+
+/* Axis labels and titles */
+[data-theme="dark"] .highcharts-axis-labels text,
+[data-theme="dark"] .highcharts-axis-title {
+    fill: #8b949e !important;
+}
+
+/* Axis lines and grid lines */
+[data-theme="dark"] .highcharts-axis-line,
+[data-theme="dark"] .highcharts-tick {
+    stroke: #30363d !important;
+}
+
+[data-theme="dark"] .highcharts-grid-line {
+    stroke: #21262d !important;
+}
+
+/* Legend styling */
+[data-theme="dark"] .highcharts-legend-item text {
+    fill: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .highcharts-legend-item:hover text {
+    fill: #ffffff !important;
+}
+
+/* Tooltip styling */
+[data-theme="dark"] .highcharts-tooltip-box {
+    fill: #21262d !important;
+    stroke: #30363d !important;
+}
+
+[data-theme="dark"] .highcharts-tooltip text {
+    fill: #c9d1d9 !important;
+}
+
+/* Data labels */
+[data-theme="dark"] .highcharts-data-label text {
+    fill: #c9d1d9 !important;
+}
+
+/* Credits link */
+[data-theme="dark"] .highcharts-credits {
+    fill: #6e7681 !important;
+}
+
+/* Loading indicator */
+[data-theme="dark"] .highcharts-loading {
+    background-color: rgba(13, 17, 23, 0.8) !important;
+}
+
+[data-theme="dark"] .highcharts-loading-inner {
+    color: #c9d1d9 !important;
+}
+
+/* Auto dark mode detection for charts */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .highcharts-background {
+        fill: #161b22 !important;
+    }
+    
+    :root:not([data-theme="light"]) .highcharts-plot-background {
+        fill: #161b22 !important;
+    }
+    
+    :root:not([data-theme="light"]) .highcharts-title,
+    :root:not([data-theme="light"]) .highcharts-subtitle {
+        fill: #c9d1d9 !important;
+    }
+    
+    :root:not([data-theme="light"]) .highcharts-axis-labels text,
+    :root:not([data-theme="light"]) .highcharts-axis-title {
+        fill: #8b949e !important;
+    }
+    
+    :root:not([data-theme="light"]) .highcharts-axis-line,
+    :root:not([data-theme="light"]) .highcharts-tick {
+        stroke: #30363d !important;
+    }
+    
+    :root:not([data-theme="light"]) .highcharts-grid-line {
+        stroke: #21262d !important;
+    }
+    
+    :root:not([data-theme="light"]) .highcharts-legend-item text {
+        fill: #c9d1d9 !important;
+    }
+    
+    :root:not([data-theme="light"]) .highcharts-tooltip-box {
+        fill: #21262d !important;
+        stroke: #30363d !important;
+    }
+    
+    :root:not([data-theme="light"]) .highcharts-tooltip text {
+        fill: #c9d1d9 !important;
+    }
+    
+    :root:not([data-theme="light"]) .highcharts-data-label text {
+        fill: #c9d1d9 !important;
     }
 }

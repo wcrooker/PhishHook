@@ -283,12 +283,103 @@ function generateTimelineChart(campaigns) {
     })
 }
 
+function getHighchartsTheme() {
+    var isDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+        (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches &&
+         document.documentElement.getAttribute('data-theme') !== 'light');
+    
+    if (isDark) {
+        return {
+            chart: {
+                backgroundColor: '#161b22',
+                style: { fontFamily: '"Source Sans Pro", Helvetica, Arial, sans-serif' }
+            },
+            title: { style: { color: '#c9d1d9' } },
+            subtitle: { style: { color: '#8b949e' } },
+            xAxis: {
+                gridLineColor: '#21262d',
+                lineColor: '#30363d',
+                tickColor: '#30363d',
+                labels: { style: { color: '#8b949e' } },
+                title: { style: { color: '#c9d1d9' } }
+            },
+            yAxis: {
+                gridLineColor: '#21262d',
+                lineColor: '#30363d',
+                tickColor: '#30363d',
+                labels: { style: { color: '#8b949e' } },
+                title: { style: { color: '#c9d1d9' } }
+            },
+            legend: {
+                itemStyle: { color: '#c9d1d9' },
+                itemHoverStyle: { color: '#ffffff' }
+            },
+            tooltip: {
+                backgroundColor: '#21262d',
+                borderColor: '#30363d',
+                style: { color: '#c9d1d9' }
+            },
+            plotOptions: {
+                pie: {
+                    dataLabels: { color: '#c9d1d9' }
+                },
+                areaspline: {
+                    fillOpacity: 0.3
+                }
+            },
+            credits: { style: { color: '#6e7681' } }
+        };
+    }
+    
+    return {
+        chart: {
+            backgroundColor: '#ffffff',
+            style: { fontFamily: '"Source Sans Pro", Helvetica, Arial, sans-serif' }
+        },
+        title: { style: { color: '#333333' } },
+        subtitle: { style: { color: '#666666' } },
+        xAxis: {
+            gridLineColor: '#e6e6e6',
+            lineColor: '#ccd6eb',
+            tickColor: '#ccd6eb',
+            labels: { style: { color: '#666666' } },
+            title: { style: { color: '#333333' } }
+        },
+        yAxis: {
+            gridLineColor: '#e6e6e6',
+            lineColor: '#ccd6eb',
+            tickColor: '#ccd6eb',
+            labels: { style: { color: '#666666' } },
+            title: { style: { color: '#333333' } }
+        },
+        legend: {
+            itemStyle: { color: '#333333' },
+            itemHoverStyle: { color: '#000000' }
+        },
+        tooltip: {
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            borderColor: '#cccccc',
+            style: { color: '#333333' }
+        },
+        plotOptions: {
+            pie: {
+                dataLabels: { color: '#333333' }
+            },
+            areaspline: {
+                fillOpacity: 0.5
+            }
+        },
+        credits: { style: { color: '#999999' } }
+    };
+}
+
 $(document).ready(function () {
     Highcharts.setOptions({
         global: {
             useUTC: false
         }
-    })
+    });
+    Highcharts.setOptions(getHighchartsTheme())
     api.campaigns.summary()
         .success(function (data) {
             $("#loading").hide()

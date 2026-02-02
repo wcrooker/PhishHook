@@ -2,3 +2,5 @@
 *
 # Except this file
 !.gitignore
+# And the custom 404 page
+!404.html

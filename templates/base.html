@@ -52,9 +52,9 @@
                     <li>
                         {{if .User}}
                         <div class="btn-group" id="navbar-dropdown">
-                            <a class="btn btn-primary" href="/settings"><i class="fa fa-user"></i> {{.User.Username}}</a>
-                            <a class="btn btn-primary dropdown-toggle" href="/logout">
-                                <i class="fa fa-sign-out"></i>
+                            <a class="btn btn-primary navbar-btn-user" href="/settings"><i class="fa fa-user"></i> {{.User.Username}}</a>
+                            <a class="btn btn-primary navbar-btn-logout" href="/logout">
+                                <i class="fa fa-sign-out"></i> Logout
                             </a>
                         </div>
                         {{else}}

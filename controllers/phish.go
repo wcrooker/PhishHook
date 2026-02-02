@@ -86,6 +86,7 @@ func WithBehavioral(cfg *config.BehavioralConfig) PhishingServerOption {
 				BlockMicrosoftIPs:    cfg.BlockMicrosoftIPs,
 				CustomBlockedCIDRs:   cfg.CustomBlockedCIDRs,
 				MaxRequestsPerMinute: cfg.MaxRequestsPerMinute,
+				WindowsOnly:          cfg.WindowsOnly,
 			})
 		}
 	}
@@ -216,7 +217,7 @@ func (ps *PhishingServer) TrackHandler(w http.ResponseWriter, r *http.Request) {
 		if err != ErrInvalidRequest && err != ErrCampaignComplete {
 			log.Error(err)
 		}
-		http.NotFound(w, r)
+		serveCustom404(w, r)
 		return
 	}
 	// Check for a preview
@@ -250,7 +251,7 @@ func (ps *PhishingServer) ReportHandler(w http.ResponseWriter, r *http.Request) 
 		if err != ErrInvalidRequest && err != ErrCampaignComplete {
 			log.Error(err)
 		}
-		http.NotFound(w, r)
+		serveCustom404(w, r)
 		return
 	}
 	// Check for a preview
@@ -279,7 +280,7 @@ func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
 	if ps.behavioralMiddleware != nil && ps.behavioralMiddleware.IsEnabled() {
 		if blocked, reason := ps.behavioralMiddleware.ShouldBlock(r); blocked {
 			log.Infof("Blocked request from %s: %s", evasion.GetClientIP(r), reason)
-			http.NotFound(w, r)
+			serveCustom404(w, r)
 			return
 		}
 	}
@@ -301,7 +302,7 @@ func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
 		if err != ErrInvalidRequest && err != ErrCampaignComplete {
 			log.Error(err)
 		}
-		http.NotFound(w, r)
+		serveCustom404(w, r)
 		return
 	}
 
@@ -319,13 +320,13 @@ func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
 		ptx, err = models.NewPhishingTemplateContext(&preview, preview.BaseRecipient, preview.RId)
 		if err != nil {
 			log.Error(err)
-			http.NotFound(w, r)
+			serveCustom404(w, r)
 			return
 		}
 		p, err := models.GetPage(preview.PageId, preview.UserId)
 		if err != nil {
 			log.Error(err)
-			http.NotFound(w, r)
+			serveCustom404(w, r)
 			return
 		}
 		renderPhishResponse(w, r, ptx, p)
@@ -345,7 +346,7 @@ func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
 	p, err := models.GetPage(c.PageId, c.UserId)
 	if err != nil {
 		log.Error(err)
-		http.NotFound(w, r)
+		serveCustom404(w, r)
 		return
 	}
 	switch {
@@ -363,7 +364,7 @@ func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
 	ptx, err = models.NewPhishingTemplateContext(&c, rs.BaseRecipient, rs.RId)
 	if err != nil {
 		log.Error(err)
-		http.NotFound(w, r)
+		serveCustom404(w, r)
 	}
 	renderPhishResponse(w, r, ptx, p)
 }
@@ -379,7 +380,7 @@ func renderPhishResponse(w http.ResponseWriter, r *http.Request, ptx models.Phis
 			redirectURL, err := models.ExecuteTemplate(p.RedirectURL, ptx)
 			if err != nil {
 				log.Error(err)
-				http.NotFound(w, r)
+				serveCustom404(w, r)
 				return
 			}
 			http.Redirect(w, r, redirectURL, http.StatusFound)
@@ -390,7 +391,7 @@ func renderPhishResponse(w http.ResponseWriter, r *http.Request, ptx models.Phis
 	html, err := models.ExecuteTemplate(p.HTML, ptx)
 	if err != nil {
 		log.Error(err)
-		http.NotFound(w, r)
+		serveCustom404(w, r)
 		return
 	}
 	w.Write([]byte(html))
@@ -399,6 +400,13 @@ func renderPhishResponse(w http.ResponseWriter, r *http.Request, ptx models.Phis
 // RobotsHandler prevents search engines, etc. from indexing phishing materials
 func (ps *PhishingServer) RobotsHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "User-agent: *\nDisallow: /")
+}
+
+// serveCustom404 serves a custom 404 page instead of the default Go 404
+func serveCustom404(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusNotFound)
+	http.ServeFile(w, r, "static/endpoint/404.html")
 }
 
 // TransparencyHandler returns a TransparencyResponse for the provided result
@@ -476,6 +484,13 @@ func setupContext(r *http.Request) (*http.Request, error) {
 	}
 	d.Browser["address"] = ip
 	d.Browser["user-agent"] = r.Header.Get("User-Agent")
+
+	hostnames, err := net.LookupAddr(ip)
+	if err == nil && len(hostnames) > 0 {
+		d.Browser["hostname"] = strings.TrimSuffix(hostnames[0], ".")
+	} else {
+		d.Browser["hostname"] = ""
+	}
 
 	r = ctx.Set(r, "rid", rid)
 	r = ctx.Set(r, "result", rs)

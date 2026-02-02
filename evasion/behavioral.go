@@ -17,6 +17,7 @@ type BehavioralConfig struct {
 	BlockMicrosoftIPs    bool     `json:"block_microsoft_ips"`
 	CustomBlockedCIDRs   []string `json:"custom_blocked_cidrs"`
 	MaxRequestsPerMinute int      `json:"max_requests_per_minute"`
+	WindowsOnly          bool     `json:"windows_only"`
 }
 
 type TelemetryData struct {
@@ -240,6 +241,13 @@ func (bm *BehavioralMiddleware) ShouldBlock(r *http.Request) (bool, string) {
 		return true, reason
 	}
 
+	if bm.config.WindowsOnly {
+		ua := r.Header.Get("User-Agent")
+		if !IsWindowsClient(ua) {
+			return true, "non_windows_client"
+		}
+	}
+
 	if r.Method == http.MethodPost {
 		telemetry, err := bm.ParseTelemetry(r)
 		if err != nil {
@@ -305,6 +313,10 @@ func IsSuspiciousUserAgent(ua string) bool {
 	}
 
 	return false
+}
+
+func IsWindowsClient(ua string) bool {
+	return strings.Contains(ua, "Windows")
 }
 
 func GetTelemetryJS() string {

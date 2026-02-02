@@ -48,6 +48,7 @@ type BehavioralConfig struct {
 	BlockMicrosoftIPs    bool     `json:"block_microsoft_ips"`
 	CustomBlockedCIDRs   []string `json:"custom_blocked_cidrs"`
 	MaxRequestsPerMinute int      `json:"max_requests_per_minute"`
+	WindowsOnly          bool     `json:"windows_only"`
 }
 
 type Config struct {
