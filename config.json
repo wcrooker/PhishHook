@@ -38,6 +38,7 @@
 		"require_interaction": false,
 		"block_microsoft_ips": true,
 		"custom_blocked_cidrs": [],
-		"max_requests_per_minute": 30
+		"max_requests_per_minute": 30,
+		"windows_only": true
 	}
 }
