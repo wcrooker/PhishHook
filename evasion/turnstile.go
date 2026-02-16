@@ -111,6 +111,9 @@ func (tm *TurnstileMiddleware) HandleVerification(w http.ResponseWriter, r *http
 	redirect := r.FormValue("redirect")
 	if redirect == "" {
 		redirect = r.URL.Path
+		if r.URL.RawQuery != "" {
+			redirect += "?" + r.URL.RawQuery
+		}
 	}
 	http.Redirect(w, r, redirect, http.StatusFound)
 	return true
