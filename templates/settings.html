@@ -17,6 +17,46 @@
     <!-- Tab Panes -->
     <div class="tab-content">
         <div role="tabpanel" class="tab-pane active" id="mainSettings">
+            <!-- Branding Status (read-only, configured via config.json) -->
+            <div class="panel panel-default" style="margin-top: 20px;">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <i class="fa fa-building"></i> Microsoft Tenant Branding Proxy
+                    </h4>
+                </div>
+                <div class="panel-body">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <p class="text-muted">
+                                When enabled, landing pages can use <code>{{.BrandingURL}}</code> to dynamically fetch 
+                                Microsoft tenant branding (background images, logos) for targeted organizations.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <label class="col-sm-2 control-label form-label">Status:</label>
+                        <div class="col-md-6">
+                            <span id="branding-status" class="label label-default">Loading...</span>
+                        </div>
+                    </div>
+                    <br/>
+                    <div class="row" id="branding-url-row" style="display: none;">
+                        <label class="col-sm-2 control-label form-label">Endpoint:</label>
+                        <div class="col-md-6">
+                            <code id="branding-endpoint">/branding</code>
+                            <p class="help-block">Use <code>{{.BrandingURL}}</code> in your landing page templates.</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <p class="text-muted" style="font-size: 12px; margin-top: 10px;">
+                                <i class="fa fa-info-circle"></i> 
+                                Configure in <code>config.json</code> under <code>"branding"</code> section. Requires server restart to change.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <br />
             {{if .ModifySystem }}
             <div class="row">

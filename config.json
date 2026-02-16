@@ -40,5 +40,9 @@
 		"custom_blocked_cidrs": [],
 		"max_requests_per_minute": 30,
 		"windows_only": true
+	},
+	"branding": {
+		"enabled": true,
+		"allowed_origins": ["*"]
 	}
 }

@@ -133,6 +133,9 @@ func main() {
 	if conf.Behavioral != nil {
 		phishOptions = append(phishOptions, controllers.WithBehavioral(conf.Behavioral))
 	}
+	if conf.Branding != nil {
+		phishOptions = append(phishOptions, controllers.WithBranding(conf.Branding))
+	}
 	phishServer := controllers.NewPhishingServer(phishConfig, phishOptions...)
 
 	imapMonitor := imap.NewMonitor()

@@ -67,6 +67,13 @@ type Flash struct {
 	Message string
 }
 
+func GetBrandingConfig() *config.BrandingConfig {
+	if conf == nil {
+		return nil
+	}
+	return conf.Branding
+}
+
 // Response contains the attributes found in an API response
 type Response struct {
 	Message string      `json:"message"`

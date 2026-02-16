@@ -51,6 +51,11 @@ type BehavioralConfig struct {
 	WindowsOnly          bool     `json:"windows_only"`
 }
 
+type BrandingConfig struct {
+	Enabled        bool     `json:"enabled"`
+	AllowedOrigins []string `json:"allowed_origins"`
+}
+
 type Config struct {
 	AdminConf      AdminServer       `json:"admin_server"`
 	PhishConf      PhishServer       `json:"phish_server"`
@@ -64,6 +69,7 @@ type Config struct {
 	Turnstile      *TurnstileConfig  `json:"turnstile,omitempty"`
 	Evasion        *EvasionConfig    `json:"evasion,omitempty"`
 	Behavioral     *BehavioralConfig `json:"behavioral,omitempty"`
+	Branding       *BrandingConfig   `json:"branding,omitempty"`
 }
 
 // Version contains the current gophish version

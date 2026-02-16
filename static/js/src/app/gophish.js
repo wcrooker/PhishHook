@@ -291,6 +291,11 @@ var api = {
     },
     reset: function () {
         return query("/reset", "POST", {}, true)
+    },
+    config: {
+        branding: function() {
+            return query("/config/branding", "GET", {}, true)
+        }
     }
 }
 window.api = api
