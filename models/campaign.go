@@ -31,6 +31,8 @@ type Campaign struct {
 	SMTPId        int64     `json:"-"`
 	SMTP          SMTP      `json:"smtp"`
 	URL           string    `json:"url"`
+	EvilginxMode  bool      `json:"evilginx_mode"`
+	EncryptionKey string    `json:"encryption_key"`
 }
 
 // CampaignResults is a struct representing the results from a campaign
@@ -97,6 +99,7 @@ type EventError struct {
 
 // ErrCampaignNameNotSpecified indicates there was no template given by the user
 var ErrCampaignNameNotSpecified = errors.New("Campaign name not specified")
+var ErrCampaignURLNotSpecified = errors.New("Lure URL not specified")
 
 // ErrGroupNotSpecified indicates there was no template given by the user
 var ErrGroupNotSpecified = errors.New("No groups specified")
@@ -138,8 +141,10 @@ func (c *Campaign) Validate() error {
 		return ErrGroupNotSpecified
 	case c.Template.Name == "":
 		return ErrTemplateNotSpecified
-	case c.Page.Name == "":
+	case c.Page.Name == "" && !c.EvilginxMode:
 		return ErrPageNotSpecified
+	case c.URL == "" && c.EvilginxMode:
+		return ErrCampaignURLNotSpecified
 	case c.SMTP.Name == "":
 		return ErrSMTPNotSpecified
 	case !c.SendByDate.IsZero() && !c.LaunchDate.IsZero() && c.SendByDate.Before(c.LaunchDate):
@@ -233,6 +238,18 @@ func (c *Campaign) getDetails() error {
 // This is used to implement the TemplateContext interface.
 func (c *Campaign) getBaseURL() string {
 	return c.URL
+}
+
+// getEncryptionKey returns the Campaign's evilginx lure URL encryption key.
+// This is used to implement the TemplateContext interface.
+func (c *Campaign) getEncryptionKey() string {
+	return c.EncryptionKey
+}
+
+// getEvilginxMode returns whether the Campaign's URL is an evilginx lure URL.
+// This is used to implement the TemplateContext interface.
+func (c *Campaign) getEvilginxMode() bool {
+	return c.EvilginxMode
 }
 
 // getFromAddress returns the Campaign's configured SMTP "From" address.

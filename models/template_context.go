@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"path"
 	"text/template"
+
+	"github.com/gophish/gophish/evilginx"
 )
 
 // TemplateContext is an interface that allows both campaigns and email
@@ -13,6 +15,8 @@ import (
 type TemplateContext interface {
 	getFromAddress() string
 	getBaseURL() string
+	getEncryptionKey() string
+	getEvilginxMode() bool
 }
 
 // PhishingTemplateContext is the context that is sent to any template, such
@@ -53,14 +57,23 @@ func NewPhishingTemplateContext(ctx TemplateContext, r BaseRecipient, rid string
 	baseURL.Path = ""
 	baseURL.RawQuery = ""
 
-	phishURL, _ := url.Parse(templateURL)
-	q := phishURL.Query()
-	q.Set(RecipientParameter, rid)
-	phishURL.RawQuery = q.Encode()
+	var phishURL, trackingURL *url.URL
+	if ctx.getEvilginxMode() {
+		var err error
+		phishURL, trackingURL, err = evilginxLureContext(templateURL, ctx.getEncryptionKey(), r, rid)
+		if err != nil {
+			return PhishingTemplateContext{}, err
+		}
+	} else {
+		phishURL, _ = url.Parse(templateURL)
+		q := phishURL.Query()
+		q.Set(RecipientParameter, rid)
+		phishURL.RawQuery = q.Encode()
 
-	trackingURL, _ := url.Parse(templateURL)
-	trackingURL.Path = path.Join(trackingURL.Path, "/track")
-	trackingURL.RawQuery = q.Encode()
+		trackingURL, _ = url.Parse(templateURL)
+		trackingURL.Path = path.Join(trackingURL.Path, "/track")
+		trackingURL.RawQuery = q.Encode()
+	}
 
 	brandingURL, _ := url.Parse(templateURL)
 	brandingURL.Path = "/branding"
@@ -78,6 +91,46 @@ func NewPhishingTemplateContext(ctx TemplateContext, r BaseRecipient, rid string
 	}, nil
 }
 
+// evilginxLureContext builds the per-recipient phishing and tracking URLs
+// for an evilginx lure URL: custom parameters are extracted, personalized
+// values appended, and the result re-encrypted. The tracking URL carries
+// rid + o=track so evilginx serves the open-pixel and reports the result.
+func evilginxLureContext(templateURL, encKey string, r BaseRecipient, rid string) (*url.URL, *url.URL, error) {
+	baseLureURL, err := url.Parse(templateURL)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	q := url.Values{}
+	urlQuery := url.Values{}
+	for k, v := range baseLureURL.Query() {
+		params, ok, _ := evilginx.ExtractPhishUrlParams(v[0], encKey)
+		if ok {
+			for pk, pv := range params {
+				q.Set(pk, pv)
+			}
+		} else {
+			urlQuery.Set(k, v[0])
+		}
+	}
+	baseLureURL.RawQuery = urlQuery.Encode()
+
+	phishURL := *baseLureURL
+	q.Set("fname", r.FirstName)
+	q.Set("lname", r.LastName)
+	q.Set("email", r.Email)
+	q.Set("rid", rid)
+	evilginx.AddPhishUrlParams(&phishURL, q, encKey)
+
+	trackingURL := *baseLureURL
+	tq := url.Values{}
+	tq.Set("rid", rid)
+	tq.Set("o", "track")
+	evilginx.AddPhishUrlParams(&trackingURL, tq, encKey)
+
+	return &phishURL, &trackingURL, nil
+}
+
 // ExecuteTemplate creates a templated string based on the provided
 // template body and data.
 func ExecuteTemplate(text string, data interface{}) (string, error) {
@@ -92,8 +145,10 @@ func ExecuteTemplate(text string, data interface{}) (string, error) {
 
 // ValidationContext is used for validating templates and pages
 type ValidationContext struct {
-	FromAddress string
-	BaseURL     string
+	FromAddress   string
+	BaseURL       string
+	EncryptionKey string
+	EvilginxMode  bool
 }
 
 func (vc ValidationContext) getFromAddress() string {
@@ -102,6 +157,14 @@ func (vc ValidationContext) getFromAddress() string {
 
 func (vc ValidationContext) getBaseURL() string {
 	return vc.BaseURL
+}
+
+func (vc ValidationContext) getEncryptionKey() string {
+	return vc.EncryptionKey
+}
+
+func (vc ValidationContext) getEvilginxMode() bool {
+	return vc.EvilginxMode
 }
 
 // ValidateTemplate ensures that the provided text in the page or template

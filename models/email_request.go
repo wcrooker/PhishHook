@@ -24,6 +24,8 @@ type EmailRequest struct {
 	PageId      int64        `json:"-"`
 	SMTP        SMTP         `json:"smtp"`
 	URL         string       `json:"url"`
+	EncryptionKey string       `json:"encryption_key"`
+	EvilginxMode  bool         `json:"evilginx_mode"`
 	Tracker     string       `json:"tracker" gorm:"-"`
 	TrackingURL string       `json:"tracking_url" gorm:"-"`
 	UserId      int64        `json:"-"`
@@ -35,6 +37,14 @@ type EmailRequest struct {
 
 func (s *EmailRequest) getBaseURL() string {
 	return s.URL
+}
+
+func (s *EmailRequest) getEncryptionKey() string {
+	return s.EncryptionKey
+}
+
+func (s *EmailRequest) getEvilginxMode() bool {
+	return s.EvilginxMode
 }
 
 func (s *EmailRequest) getFromAddress() string {
