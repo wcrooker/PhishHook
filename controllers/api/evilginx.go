@@ -432,6 +432,12 @@ func (as *Server) EvilginxCorrelate(w http.ResponseWriter, r *http.Request) {
 				if campaign != nil {
 					corr.CampaignID = campaign.Id
 					corr.CampaignName = campaign.Name
+				} else {
+					// Unencrypted lure: hydrate the campaign from the result.
+					if camp, err := models.GetCampaign(result.CampaignId, ctx.Get(r, "user_id").(int64)); err == nil {
+						corr.CampaignID = camp.Id
+						corr.CampaignName = camp.Name
+					}
 				}
 				if events, err := models.GetEventsByCampaignAndEmail(result.CampaignId, result.Email); err == nil {
 					corr.Timeline = events
