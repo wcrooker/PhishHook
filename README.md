@@ -486,7 +486,7 @@ Safe Links typically hits within seconds of email delivery with no interaction e
 
 ### Evilginx AiTM Integration
 
-PhishHook ships with native integration for [Evilginx](https://github.com/kgretzky/evilginx2) (AiTM phishing with session-token capture), matching the official Evilginx Gophish integration.
+PhishHook ships with native integration for [Evilginx](https://github.com/kgretzky/evilginx2) (AiTM phishing with session-token capture), matching the official Evilginx Gophish integration. For a complete deployment walkthrough of all services together, see [Full Deployment Workflow](#full-deployment-workflow).
 
 When **Evilginx Mode** is enabled on a campaign:
 
@@ -502,10 +502,12 @@ When **Evilginx Mode** is enabled on a campaign:
 
    ```
    config enc_key <the campaign's Lure Encryption Key>
-   gophish <phishhook-admin-url> <api-key>
+   config gophish admin_url <phishhook-admin-url>   # e.g. https://127.0.0.1:3333 on the same host
+   config gophish api_key <phishhook-api-key>
+   config gophish test
    ```
 
-   The API key is shown under **Account Settings** in the PhishHook UI (it authenticates with `Authorization: Bearer`, which Evilginx uses automatically).
+   The API key is shown under **Account Settings** in the PhishHook UI (it authenticates with `Authorization: Bearer`, which Evilginx uses automatically). `config gophish test` should report a successful connection.
 
 2. In PhishHook, create a campaign, tick **Evilginx Mode**, and paste the Evilginx lure URL (e.g. `https://lure.example.com/documents/report.pdf`) into the **URL** field. The landing page selector is hidden — Evilginx serves the target site instead.
 
@@ -532,7 +534,7 @@ When **Evilginx Mode** is enabled on a campaign:
 
 ### Evilginx Management Console
 
-PhishHook includes a full GUI for evilginx (admin-only, **Evilginx** in the sidebar) with tabs for status, phishlets, lures and captured sessions. The console talks to evilginx through a REST API added by the [evilginx3-phishhook](https://github.com/wcrooker/evilginx3-phishhook) fork — everything else in that fork works exactly like upstream evilginx.
+PhishHook includes a full GUI for evilginx (admin-only, **Evilginx** in the sidebar) with tabs for status, phishlets, lures and captured sessions. The console talks to evilginx through a REST API added by the [evilginx3-phishhook](https://github.com/wcrooker/evilginx3-phishhook) fork — everything else in that fork works exactly like upstream evilginx. A complete step-by-step deployment covering this and the other services is in [Full Deployment Workflow](#full-deployment-workflow).
 
 **1. Run evilginx with the REST API enabled (same host as PhishHook):**
 
