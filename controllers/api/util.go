@@ -6,6 +6,7 @@ import (
 	"net/mail"
 
 	ctx "github.com/gophish/gophish/context"
+	"github.com/gophish/gophish/evilginx"
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
 	"github.com/jinzhu/gorm"
@@ -27,6 +28,12 @@ func (as *Server) SendTestEmail(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		JSONResponse(w, models.Response{Success: false, Message: "Error decoding JSON Request"}, http.StatusBadRequest)
 		return
+	}
+	// Mirror campaign behavior: evilginx-mode requests always carry an
+	// encryption key so the lure URL is encrypted exactly as it would be
+	// for the real campaign.
+	if s.EvilginxMode && s.EncryptionKey == "" {
+		s.EncryptionKey = evilginx.GenRandomAlphanumString(32)
 	}
 
 	storeRequest := false

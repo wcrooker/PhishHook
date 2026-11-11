@@ -11,6 +11,54 @@ var labels = {
 var campaigns = []
 var campaign = {}
 
+// generateLureKey returns a random 32-character alphanumeric string used as
+// the evilginx lure URL encryption key. It must match the evilginx `enc_key`
+// configuration so evilginx can decrypt the per-recipient lure parameters.
+function generateLureKey() {
+    var chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    var bytes = new Uint8Array(32)
+    crypto.getRandomValues(bytes)
+    var out = ""
+    for (var i = 0; i < bytes.length; i++) {
+        out += chars.charAt(bytes[i] % chars.length)
+    }
+    return out
+}
+
+// toggleEvilginxMode switches the campaign modal between Gophish-hosted
+// landing pages and evilginx lure URLs.
+function toggleEvilginxMode() {
+    var evilginx = $("#evilginx_mode").is(":checked")
+    $("#encryptionKeyGroup").toggle(evilginx)
+    $("#pageGroup").toggle(!evilginx)
+    if (evilginx) {
+        $("#url").attr("placeholder", "https://lure.example.com/report.pdf")
+        if ($("#encryption_key").val() == "") {
+            $("#encryption_key").val(generateLureKey())
+        }
+    } else {
+        $("#url").attr("placeholder", "http://192.168.1.1")
+    }
+}
+
+// campaignLurePayload returns the campaign fields shared by the launch and
+// test-email flows, switching between landing-page and evilginx lure modes.
+function campaignLurePayload() {
+    var payload = {
+        url: $("#url").val(),
+    }
+    if ($("#evilginx_mode").is(":checked")) {
+        payload.evilginx_mode = true
+        payload.encryption_key = $("#encryption_key").val()
+    } else {
+        payload.evilginx_mode = false
+        payload.page = {
+            name: $("#page").select2("data")[0].text
+        }
+    }
+    return payload
+}
+
 // Launch attempts to POST to /campaigns/
 function launch() {
     Swal.fire({
@@ -42,10 +90,6 @@ function launch() {
                     template: {
                         name: $("#template").select2("data")[0].text
                     },
-                    url: $("#url").val(),
-                    page: {
-                        name: $("#page").select2("data")[0].text
-                    },
                     smtp: {
                         name: $("#profile").select2("data")[0].text
                     },
@@ -53,6 +97,7 @@ function launch() {
                     send_by_date: send_by_date || null,
                     groups: groups,
                 }
+                $.extend(campaign, campaignLurePayload())
                 // Submit the campaign
                 api.campaigns.post(campaign)
                     .success(function (data) {
@@ -90,14 +135,11 @@ function sendTestEmail() {
         last_name: $("input[name=to_last_name]").val(),
         email: $("input[name=to_email]").val(),
         position: $("input[name=to_position]").val(),
-        url: $("#url").val(),
-        page: {
-            name: $("#page").select2("data")[0].text
-        },
         smtp: {
             name: $("#profile").select2("data")[0].text
         }
     }
+    $.extend(test_email_request, campaignLurePayload())
     btnHtml = $("#sendTestModalSubmit").html()
     $("#sendTestModalSubmit").html('<i class="fa fa-spinner fa-spin"></i> Sending')
     // Send the test email
@@ -122,6 +164,9 @@ function dismiss() {
     $("#url").val("");
     $("#profile").val("").change();
     $("#users").val("").change();
+    $("#evilginx_mode").prop("checked", false);
+    $("#encryption_key").val("");
+    toggleEvilginxMode();
     $("#modal").modal('hide');
 }
 
@@ -284,6 +329,11 @@ function copy(idx) {
                 $("#profile").trigger("change.select2")
             }
             $("#url").val(campaign.url)
+            if (campaign.evilginx_mode) {
+                $("#evilginx_mode").prop("checked", true)
+                $("#encryption_key").val(campaign.encryption_key || "")
+                toggleEvilginxMode()
+            }
         })
         .error(function (data) {
             $("#modal\\.flashes").empty().append("<div style=\"text-align:center\" class=\"alert alert-danger\">\

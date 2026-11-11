@@ -91,14 +91,29 @@
                     <select class="form-control" placeholder="Template Name" id="template" />
                     <option></option>
                     </select>
-                    <label class="control-label" for="page">Landing Page:</label>
-                    <select class="form-control" placeholder="Landing Page" id="page" />
-                    <option></option>
-                    </select>
+                    <div id="pageGroup">
+                        <label class="control-label" for="page">Landing Page:</label>
+                        <select class="form-control" placeholder="Landing Page" id="page" />
+                        <option></option>
+                        </select>
+                    </div>
                     <label class="control-label" for="url">URL:
                         <i class="fa fa-question-circle" data-toggle="tooltip" data-placement="right" title="Location of Gophish listener (must be reachable by targets!)"></i>
                     </label>
                     <input type="text" class="form-control" placeholder="http://192.168.1.1" id="url" />
+                    <div class="checkbox">
+                        <label>
+                            <input type="checkbox" id="evilginx_mode" onchange="toggleEvilginxMode()">
+                            <i class="fa fa-binoculars"></i> Evilginx Mode
+                            <i class="fa fa-question-circle" data-toggle="tooltip" data-placement="right" title="Targets click an Evilginx lure URL instead of a Gophish landing page. Gophish personalizes and encrypts the lure per recipient; Evilginx reports opened/clicked/submitted results back via the API."></i>
+                        </label>
+                    </div>
+                    <div id="encryptionKeyGroup" style="display:none;">
+                        <label class="control-label" for="encryption_key">Lure Encryption Key:
+                            <i class="fa fa-question-circle" data-toggle="tooltip" data-placement="right" title="Must match the Evilginx 'enc_key' configuration so Evilginx can decrypt the per-recipient lure parameters. Leave blank to auto-generate."></i>
+                        </label>
+                        <input type="text" class="form-control" id="encryption_key" placeholder="Leave blank to auto-generate" autocomplete="off" />
+                    </div>
                     <div class="row">
                         <div class="col-md-6">
                             <label class="control-label" for="url">Launch Date </label>

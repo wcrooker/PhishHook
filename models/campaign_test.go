@@ -117,6 +117,54 @@ func (s *ModelsSuite) TestLaunchCampaignMaillogStatus(c *check.C) {
 	}
 }
 
+func (s *ModelsSuite) TestCampaignEvilginxMode(c *check.C) {
+	// Evilginx-mode campaigns don't require a landing page, and
+	// PostCampaign must auto-generate a lure encryption key when
+	// none is provided.
+	campaign := s.createCampaignDependencies(c)
+	campaign.Name = "Evilginx Campaign"
+	campaign.EvilginxMode = true
+	campaign.Page = Page{}
+	campaign.PageId = 0
+	campaign.URL = "https://lure.example.com/report.pdf?xyz=abc"
+	err := PostCampaign(&campaign, campaign.UserId)
+	c.Assert(err, check.Equals, nil)
+	c.Assert(campaign.EncryptionKey, check.Not(check.Equals), "")
+
+	got, err := GetCampaign(campaign.Id, campaign.UserId)
+	c.Assert(err, check.Equals, nil)
+	c.Assert(got.EvilginxMode, check.Equals, true)
+	c.Assert(got.EncryptionKey, check.Equals, campaign.EncryptionKey)
+	c.Assert(got.Page.Name, check.Equals, "")
+
+	// An operator-supplied encryption key is preserved.
+	campaign = s.createCampaignDependencies(c)
+	campaign.Name = "Evilginx Campaign 2"
+	campaign.EvilginxMode = true
+	campaign.Page = Page{}
+	campaign.PageId = 0
+	campaign.URL = "https://lure.example.com/report.pdf"
+	campaign.EncryptionKey = "my-shared-enc-key"
+	err = PostCampaign(&campaign, campaign.UserId)
+	c.Assert(err, check.Equals, nil)
+	c.Assert(campaign.EncryptionKey, check.Equals, "my-shared-enc-key")
+
+	// Evilginx-mode campaigns still validate the lure URL and reject
+	// campaigns that provide neither a page nor a lure URL.
+	campaign = s.createCampaignDependencies(c)
+	campaign.EvilginxMode = true
+	campaign.Page = Page{}
+	campaign.URL = ""
+	err = campaign.Validate()
+	c.Assert(err, check.Equals, ErrCampaignURLNotSpecified)
+
+	// Non-evilginx campaigns continue to require a landing page.
+	campaign = s.createCampaignDependencies(c)
+	campaign.Page = Page{}
+	err = campaign.Validate()
+	c.Assert(err, check.Equals, ErrPageNotSpecified)
+}
+
 func (s *ModelsSuite) TestDeleteCampaignAlsoDeletesMailLogs(c *check.C) {
 	campaign := s.createCampaign(c)
 	ms, err := GetMailLogsByCampaign(campaign.Id)

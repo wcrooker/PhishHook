@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/gophish/gophish/evilginx"
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/webhook"
 	"github.com/jinzhu/gorm"
@@ -209,13 +210,17 @@ func (c *Campaign) getDetails() error {
 		log.Warn(err)
 		return err
 	}
-	err = db.Table("pages").Where("id=?", c.PageId).Find(&c.Page).Error
-	if err != nil {
-		if err != gorm.ErrRecordNotFound {
-			return err
+	// Evilginx-mode campaigns have no landing page at all, so skip the
+	// lookup rather than reporting a page as "[Deleted]".
+	if c.PageId != 0 {
+		err = db.Table("pages").Where("id=?", c.PageId).Find(&c.Page).Error
+		if err != nil {
+			if err != gorm.ErrRecordNotFound {
+				return err
+			}
+			c.Page = Page{Name: "[Deleted]"}
+			log.Warnf("%s: page not found for campaign", err)
 		}
-		c.Page = Page{Name: "[Deleted]"}
-		log.Warnf("%s: page not found for campaign", err)
 	}
 	err = db.Table("smtp").Where("id=?", c.SMTPId).Find(&c.SMTP).Error
 	if err != nil {
@@ -517,19 +522,32 @@ func PostCampaign(c *Campaign, uid int64) error {
 	}
 	c.Template = t
 	c.TemplateId = t.Id
-	// Check to make sure the page exists
-	p, err := GetPageByName(c.Page.Name, uid)
-	if err == gorm.ErrRecordNotFound {
-		log.WithFields(logrus.Fields{
-			"page": c.Page.Name,
-		}).Error("Page does not exist")
-		return ErrPageNotFound
-	} else if err != nil {
-		log.Error(err)
-		return err
+	// Check to make sure the page exists. In evilginx mode, targets receive
+	// an evilginx lure URL rather than a Gophish-hosted landing page, so the
+	// page is optional.
+	if c.Page.Name != "" {
+		p, err := GetPageByName(c.Page.Name, uid)
+		if err == gorm.ErrRecordNotFound {
+			log.WithFields(logrus.Fields{
+				"page": c.Page.Name,
+			}).Error("Page does not exist")
+			return ErrPageNotFound
+		} else if err != nil {
+			log.Error(err)
+			return err
+		}
+		c.Page = p
+		c.PageId = p.Id
 	}
-	c.Page = p
-	c.PageId = p.Id
+	// Generate a lure URL encryption key for evilginx campaigns that don't
+	// provide one. This key must match the evilginx `enc_key` configuration
+	// so that evilginx can decrypt the per-recipient lure parameters.
+	if c.EvilginxMode && c.EncryptionKey == "" {
+		c.EncryptionKey = evilginx.GenRandomAlphanumString(32)
+		log.WithFields(logrus.Fields{
+			"campaign": c.Name,
+		}).Info("Generated evilginx lure encryption key")
+	}
 	// Check to make sure the sending profile exists
 	s, err := GetSMTPByName(c.SMTP.Name, uid)
 	if err == gorm.ErrRecordNotFound {

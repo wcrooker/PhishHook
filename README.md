@@ -267,6 +267,52 @@ The behavioral detection layer runs before Turnstile and blocks requests based o
 
 Safe Links typically hits within seconds of email delivery with no interaction events, making it easy to distinguish from real users.
 
+### Evilginx AiTM Integration
+
+PhishHook ships with native integration for [Evilginx](https://github.com/kgretzky/evilginx2) (AiTM phishing with session-token capture), matching the official Evilginx Gophish integration.
+
+When **Evilginx Mode** is enabled on a campaign:
+
+1. Instead of a Gophish landing page, targets receive an **Evilginx lure URL**.
+2. Gophish personalizes each lure URL per recipient (`fname`, `lname`, `email`, `rid`), encrypted so scanners can't decode it:
+   - Parameters are RC4-encrypted with a random per-URL key, then wrapped in AES-256-CBC using the campaign's **Lure Encryption Key**.
+   - If you leave the key field blank, one is generated for you.
+3. Evilginx decrypts the parameters and reports `opened` → `clicked` → `submitted` events back to the PhishHook API, so your campaign results stay complete even though the landing page is served by Evilginx.
+
+**Setup:**
+
+1. On the Evilginx server, pair the encryption key and register the PhishHook API:
+
+   ```
+   config enc_key <the campaign's Lure Encryption Key>
+   gophish <phishhook-admin-url> <api-key>
+   ```
+
+   The API key is shown under **Account Settings** in the PhishHook UI (it authenticates with `Authorization: Bearer`, which Evilginx uses automatically).
+
+2. In PhishHook, create a campaign, tick **Evilginx Mode**, and paste the Evilginx lure URL (e.g. `https://lure.example.com/documents/report.pdf`) into the **URL** field. The landing page selector is hidden — Evilginx serves the target site instead.
+
+3. Reference `{{.URL}}` in your email template as usual; PhishHook emits the encrypted, personalized lure URL for every recipient.
+
+**Notes:**
+
+- The **Lure Encryption Key** must match Evilginx's `enc_key`. If Evilginx runs without an `enc_key`, leave the campaign key blank too.
+- Open tracking uses Evilginx's open-pixel callback, so no Gophish listener needs to be reachable from the lure domain.
+- The API can create evilginx-mode campaigns directly:
+
+  ```bash
+  curl -k -X POST https://localhost:3333/api/campaigns/?api_key=YOUR_API_KEY \
+    -d '{
+      "name": "Evilginx Campaign",
+      "template": {"name": "Template"},
+      "smtp": {"name": "Profile"},
+      "groups": [{"name": "Targets"}],
+      "url": "https://lure.example.com/report.pdf",
+      "evilginx_mode": true,
+      "encryption_key": "shared-with-evilginx"
+    }'
+  ```
+
 ## License
 
 MIT License - Based on [GoPhish](https://github.com/gophish/gophish) by Jordan Wright
