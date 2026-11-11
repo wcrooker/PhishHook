@@ -15,6 +15,8 @@
 - **Behavioral Detection**: Filter automated scanners using timing analysis, Microsoft IP blocking, and JS telemetry (mouse movement, scroll events, time-on-page)
 - **Microsoft Tenant Branding Proxy**: Automatically fetch target organization's custom Microsoft 365 login branding (background images, logos) via `{{.BrandingURL}}` template variable
 - **Header Evasion**: Strips identifying headers (`X-Server: gophish`, etc.) that fingerprint the server
+- **Evilginx AiTM Integration**: Evilginx-mode campaigns with encrypted per-recipient lures, result callbacks, and a full management console (phishlets, lures, DNS pre-launch checks, session correlation)
+- **Phishlet Generator**: Sidecar-driven target analysis and phishlet YAML generation with validation, AI refinement, and a phishlet library
 - **Full GoPhish Compatibility**: All upstream GoPhish features work as expected
 
 ## Why PhishHook?
@@ -139,6 +141,219 @@ Edit `config.json`:
 | `behavioral.max_requests_per_minute` | Rate limit per IP address (default: 30) |
 | `branding.enabled` | Enable Microsoft tenant branding proxy |
 | `branding.allowed_origins` | CORS allowed origins for branding endpoint (use ["*"] for all) |
+| `evilginx.api_url` | Base URL of the evilginx REST API (evilginx3-phishhook fork) |
+| `evilginx.api_key` | Bearer token for the evilginx REST API (`-restapi-token`) |
+| `phishlet_generator.url` | Base URL of the PhishletGenerator sidecar backend |
+
+## Full Deployment Workflow
+
+This section walks through deploying the complete stack — PhishHook, the evilginx fork, and the phishlet generator — and wiring them together. Read it top to bottom on a fresh box.
+
+### Architecture
+
+```
+                          +-------------------------------------+
+                          |            Operator browser         |
+                          +------------------|------------------+
+                                             | HTTPS (login + API)
+                                             v
++--------------------------------------------+--------------------------+
+| PhishHook host                                             |
+|  +---------------------+     +---------------------+     +---------+ |
+|  | Admin server        |---->| evilginx REST API   |---->| evilginx| |
+|  | 127.0.0.1:3333      |     | bridge (in-process) |     | :8443   | |
+|  +---------------------+     +---------------------+     | :443    | |
+|            |                                              +---------+ |
+|  +---------------------+     +---------------------+                 |
+|  | Phish server        |     | Generator sidecar   |                  |
+|  | :443 or custom      |     | proxy /api/phishletgen/* -> :8000     |
+|  +---------------------+     +---------------------+                 |
++----------------------------------------------------------------------+
+         |                                       |
+         v                                       v
+  Targets receive email                  evilginx serves the phished
+  with lure URLs (encrypted              site on its own domains,
+  per-recipient)                         captures sessions, reports
+                                         results back to PhishHook
+```
+
+All service-to-service traffic (evilginx API, generator API) stays on loopback or the compose network — only PhishHook's admin UI and the phishing endpoints are ever exposed.
+
+### Ports & who owns them
+
+| Port | Service | Exposure |
+|------|---------|----------|
+| 3333 | PhishHook admin UI + API (TLS) | loopback or VPN only |
+| 443 | evilginx phish server (its domains) | public — the phished site |
+| 443 | PhishHook phish server (landing pages) | public — **conflicts with evilginx, see below** |
+| 80 | ACME challenge (autocert / Let's Encrypt) | public |
+| 8443 | evilginx REST API | loopback only |
+| 8000 | PhishletGenerator backend | loopback / compose network only |
+
+**Port 443 conflict:** evilginx and PhishHook's phishing server both want 443. Pick one:
+
+- **Separate hosts (recommended).** evilginx lives on its own redirector VPS — better OPSEC (the team server never touches target traffic) and no port fights. Keep the evilginx REST API on its loopback and reach it from PhishHook through an SSH tunnel: `ssh -fN -L 8443:127.0.0.1:8443 evilginx-box`, then point `evilginx.api_url` at `http://127.0.0.1:8443`. The bearer token protects the tunnel.
+- **Same host.** Run PhHook's phish server on a different port (`"listen_url": "0.0.0.0:8443"` in `phish_server`) if you still serve classic landing pages; if you only run evilginx-mode campaigns, start PhishHook with `--mode admin` and don't bind the phish server at all.
+
+### Step 1 — Provision DNS
+
+Before anything starts, create DNS records so certificates can be issued:
+
+1. A record for the **PhishHook admin host** (e.g. `team.example.com`) if you expose the admin UI beyond loopback/VPN.
+2. For each evilginx phishlet: one record per host the phishlet needs (the console's **Phishlets → DNS** button lists them, e.g. `login.phish.example.com`, `aadcdn.phish.example.com`), all pointing at the **evilginx host's IP**.
+3. Set the evilginx **base domain** (`config domain`, step 5) to the domain those subdomains live under.
+
+### Step 2 — Build and install PhishHook
+
+```bash
+git clone https://github.com/wcrooker/PhishHook.git
+cd PhishHook
+go build
+sudo setcap 'cap_net_bind_service=+ep' ./gophish   # only if binding <1024
+```
+
+### Step 3 — Install the evilginx fork
+
+```bash
+git clone https://github.com/wcrooker/evilginx3-phishhook.git
+cd evilginx3-phishhook
+go build -o evilginx .
+```
+
+Copy phishlets into `./phishlets/` as usual — the generator (step 4) and the console both write YAML here.
+
+### Step 4 — (Optional) Start the phishlet generator
+
+```bash
+git clone https://github.com/wcrooker/PhishletGenerator-Evilginx.git phishletgen
+cd phishletgen
+pip install -r requirements.txt && playwright install chromium
+cp ../PhishHook/.env.phishletgen.example ../PhishHook/.env   # optional AI keys
+uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+Or use the compose file from the PhishHook repo, which brings up everything including FlareSolverr (see [Phishlet Generator](#phishlet-generator)).
+
+### Step 5 — Configure and start evilginx
+
+```bash
+./evilginx -p ./phishlets \
+    -restapi 127.0.0.1:8443 \
+    -restapi-token <generate-a-long-random-secret> \
+    -developer   # omit for autocert once DNS is live
+```
+
+In the evilginx terminal, do the first-run config:
+
+```
+config domain phish.example.com          # base domain for all phishlets
+config ipv4 external <evilginx-host-ip>
+config gophish admin_url https://127.0.0.1:3333
+config gophish api_key <phishhook-api-key>
+config gophish test                      # should say: connection successful
+```
+
+The PhishHook API key is shown under **Account Settings → API Key**. This pairing is what lets evilginx report opened/clicked/submitted events into campaign timelines.
+
+### Step 6 — Configure and start PhishHook
+
+Edit `config.json`, adding the bridge sections:
+
+```json
+{
+  "admin_server": { "listen_url": "127.0.0.1:3333", "use_tls": true },
+  "phish_server": { "listen_url": "0.0.0.0:8443", "use_tls": true },
+  "evilginx": {
+    "api_url": "http://127.0.0.1:8443",
+    "api_key": "<the -restapi-token value>"
+  },
+  "phishlet_generator": {
+    "url": "http://127.0.0.1:8000"
+  }
+}
+```
+
+Start it:
+
+```bash
+./gophish
+```
+
+First run prints a generated admin password to the log and flags `password_change_required` — log in, set your own password, and grab the API key from **Account Settings**.
+
+**Keeping the stack alive** — systemd units for both processes:
+
+```ini
+# /etc/systemd/system/phishhook.service
+[Unit]
+Description=PhishHook
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/phishhook
+ExecStart=/opt/phishhook/gophish
+Restart=on-failure
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```ini
+# /etc/systemd/system/evilginx.service
+[Unit]
+Description=evilginx (phishhook fork)
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/evilginx
+ExecStart=/opt/evilginx/evilginx -p /opt/evilginx/phishlets -restapi 127.0.0.1:8443 -restapi-token TOKEN
+Restart=on-failure
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Step 7 — Verify the wiring
+
+Log into the PhishHook UI and open **Evilginx**:
+
+- **Status** tab should show the evilginx version, base domain, and your external IP. If it errors "not configured", the bridge section isn't in `config.json`; if it's a connection error, the API isn't running or the token is wrong.
+- **Generator** tab should show the wizard instead of the setup hint.
+
+### Step 8 — Phishlet workflow
+
+1. **Generate:** Evilginx → **Generator** → paste the target's real login URL → *Generate Phishlet* (watch live analysis progress; toggle AI refinement if keys are configured) → review warnings/suggestions → **Validate** → **Save to Library** and/or **Download** the YAML.
+2. **Load:** copy the YAML into evilginx's `phishlets/` directory (evilginx loads phishlets at startup — restart the service after adding files).
+3. **Configure:** Evilginx → **Phishlets** → set the **Hostname** for the phishlet (must be under the base domain) → **Enable**.
+4. **Pre-launch check:** click **Verify** — every host in the list must be green. A red row means a missing DNS record; the campaign will be dead on arrival.
+
+### Step 9 — Lure and campaign
+
+1. Evilginx → **Lures** → **New Lure** (pick the phishlet, optionally set a redirect URL) → **Copy URL** for external use, or click **Campaign** to jump straight into the campaign wizard pre-filled (evilginx mode on, lure URL set, encryption key generated).
+2. The **Lure Encryption Key** must match evilginx's `config enc_key <value>` — set one side to match the other.
+3. Pick a template, sending profile, and group; launch. `{{.URL}}` in the template resolves to the per-recipient encrypted lure.
+
+### Step 10 — Monitor and close out
+
+- **Campaigns** show the normal metrics; evilginx reports opened/clicked/submitted into the same timeline.
+- **Evilginx → Sessions** lists captures **correlated with campaigns** — each session is matched to its recipient, and the detail modal shows the merged timeline plus credentials and auth cookies (JSON-copyable for session replay).
+- **Teardown:** complete the campaign in PhishHook (stops callbacks), disable the phishlet in the console, then delete captured sessions from the console when the engagement ends.
+
+### Troubleshooting
+
+| Symptom | Likely cause |
+|---------|--------------|
+| Login "reloads" the page | Old builds only: session cookie was `SameSite=None` without `Secure` on plain HTTP — fixed in `d317480`; update. |
+| Evilginx tab: "not configured" | `evilginx` section missing from `config.json`, or server not restarted after adding it |
+| Evilginx tab: connection error | REST API not running on `api_url`, or token mismatch |
+| 403 on admin form posts | Reverse proxy stripping Origin/Referer on HTTPS deployments — ensure `X-Forwarded-Proto` handling or run admin server with `use_tls: true` |
+| Phishlet enable fails | Hostname not set, or hostname not a subdomain of the evilginx base domain |
+| Verify shows red rows | Missing/wrong DNS records, or records not propagated yet |
+| Targets get 404 on lure | Phishlet disabled, lure deleted, or evilginx restarted and hostname unset |
+| No results in campaign timeline | evilginx `config gophish` pairing missing or wrong API key — `config gophish test` in evilginx |
+| Generator tab shows setup hint | `phishlet_generator` section missing, or sidecar down |
 
 ## CLI Options
 
@@ -156,6 +371,8 @@ Edit `config.json`:
 | https://localhost:3333 | Admin panel |
 | https://your-domain:443 | Phishing server |
 | https://your-domain:443/branding?email=user@company.com | Microsoft tenant branding proxy |
+| http://127.0.0.1:8443/api/status | evilginx REST API (loopback, bearer token) |
+| http://127.0.0.1:8000/api/v1/health | PhishletGenerator backend |
 
 ## API
 
