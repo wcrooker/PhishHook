@@ -113,7 +113,6 @@ func (as *Server) registerRoutes() {
 	router.HandleFunc("/webhooks/", mid.Use(as.Webhooks, mid.RequirePermission(models.PermissionModifySystem)))
 	router.HandleFunc("/webhooks/{id:[0-9]+}/validate", mid.Use(as.ValidateWebhook, mid.RequirePermission(models.PermissionModifySystem)))
 	router.HandleFunc("/webhooks/{id:[0-9]+}", mid.Use(as.Webhook, mid.RequirePermission(models.PermissionModifySystem)))
-	router.HandleFunc("/config/branding", as.BrandingStatus)
 	router.HandleFunc("/results/{id:[a-zA-Z0-9]+}/open", as.ResultOpen)
 	router.HandleFunc("/results/{id:[a-zA-Z0-9]+}/click", as.ResultClick)
 	router.HandleFunc("/results/{id:[a-zA-Z0-9]+}/submit", as.ResultSubmit)

@@ -13,7 +13,6 @@
 - **Automatic Let's Encrypt SSL**: Use `--domain` flag for automatic certificate provisioning
 - **Cloudflare Turnstile Integration**: Bot protection that blocks automated scanners (Safe Links, security crawlers) while allowing real users through
 - **Behavioral Detection**: Filter automated scanners using timing analysis, Microsoft IP blocking, and JS telemetry (mouse movement, scroll events, time-on-page)
-- **Microsoft Tenant Branding Proxy**: Automatically fetch target organization's custom Microsoft 365 login branding (background images, logos) via `{{.BrandingURL}}` template variable
 - **Header Evasion**: Strips identifying headers (`X-Server: gophish`, etc.) that fingerprint the server
 - **Evilginx AiTM Integration**: Evilginx-mode campaigns with encrypted per-recipient lures, result callbacks, and a full management console (phishlets, lures, DNS pre-launch checks, session correlation)
 - **Phishlet Generator**: Sidecar-driven target analysis and phishlet YAML generation with validation, AI refinement, and a phishlet library
@@ -104,10 +103,6 @@ Edit `config.json`:
     "block_microsoft_ips": true,
     "custom_blocked_cidrs": [],
     "max_requests_per_minute": 30
-  },
-  "branding": {
-    "enabled": true,
-    "allowed_origins": ["*"]
   }
 }
 ```
@@ -139,8 +134,6 @@ Edit `config.json`:
 | `behavioral.block_microsoft_ips` | Block known Microsoft 365/Safe Links IP ranges |
 | `behavioral.custom_blocked_cidrs` | Additional CIDR ranges to block (e.g., ["10.0.0.0/8"]) |
 | `behavioral.max_requests_per_minute` | Rate limit per IP address (default: 30) |
-| `branding.enabled` | Enable Microsoft tenant branding proxy |
-| `branding.allowed_origins` | CORS allowed origins for branding endpoint (use ["*"] for all) |
 | `evilginx.api_url` | Base URL of the evilginx REST API (evilginx3-phishhook fork) |
 | `evilginx.api_key` | Bearer token for the evilginx REST API (`-restapi-token`) |
 | `phishlet_generator.url` | Base URL of the PhishletGenerator sidecar backend |
@@ -370,7 +363,6 @@ Log into the PhishHook UI and open **Evilginx**:
 |----------|-------------|
 | https://localhost:3333 | Admin panel |
 | https://your-domain:443 | Phishing server |
-| https://your-domain:443/branding?email=user@company.com | Microsoft tenant branding proxy |
 | http://127.0.0.1:8443/api/status | evilginx REST API (loopback, bearer token) |
 | http://127.0.0.1:8000/api/v1/health | PhishletGenerator backend |
 
@@ -434,38 +426,15 @@ User clicks phishing link
                +----------+
 ```
 
-### Microsoft Tenant Branding
+### Design note: why there is no tenant-branding proxy
 
-PhishHook can automatically fetch an organization's custom Microsoft 365 login branding, making phishing pages nearly indistinguishable from the real thing.
+Older versions of PhishHook shipped a branding proxy (a `/branding` endpoint that fetched an organization's custom Microsoft 365 login branding via `GetCredentialType`). It was removed deliberately:
 
-**How it works:**
-1. Landing page includes `{{.BrandingURL}}` template variable
-2. When page loads, JavaScript calls the branding endpoint with the target's email
-3. PhishHook queries Microsoft's GetCredentialType API
-4. Returns the organization's custom background image, logo, and boilerplate text
-5. Landing page applies the branding dynamically
+- **M365 phishing belongs in evilginx.** Evilginx proxies the *real* `login.microsoftonline.com`, so Microsoft applies the target tenant's branding natively during the proxied auth flow — better fidelity than any replica, plus session-token capture. A hand-built landing page plus a branding lookup cannot compete.
+- **The runtime fetch was a fingerprint.** The victim's browser calling `GET /branding?email=<their own address>` on the phishing domain is an IOC visible in proxy/EDR logs; the real login page never does that. It contradicted the fork's whole thesis (stripping `X-Server: gophish`, filtering Safe Links, etc.).
+- **Server-side lookups were OPSEC poison.** Querying `GetCredentialType` from phishing-infrastructure IPs with target emails is the classic tenant-enumeration detection pattern, and the endpoint doubled as an unauthenticated tenant-enumeration relay for anyone who found the domain.
 
-**Usage in landing pages:**
-```javascript
-fetch('{{.BrandingURL}}?email={{.Email}}')
-  .then(r => r.json())
-  .then(data => {
-    if (data.userTenantBranding) {
-      document.body.style.backgroundImage = 'url(' + data.backgroundImageUrl + ')';
-    }
-  });
-```
-
-**Response format:**
-```json
-{
-  "success": true,
-  "backgroundImageUrl": "https://aadcdn.msauthimages.net/...",
-  "bannerLogoUrl": "https://aadcdn.msauthimages.net/...",
-  "boilerPlateText": "<p>Custom login text...</p>",
-  "userTenantBranding": true
-}
-```
+If you need a convincing M365 pre-auth page without evilginx, reuse Microsoft's own assets rather than querying for tenant branding at runtime.
 
 ### Behavioral Detection
 

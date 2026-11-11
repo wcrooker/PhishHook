@@ -51,11 +51,6 @@ type BehavioralConfig struct {
 	WindowsOnly          bool     `json:"windows_only"`
 }
 
-type BrandingConfig struct {
-	Enabled        bool     `json:"enabled"`
-	AllowedOrigins []string `json:"allowed_origins"`
-}
-
 // EvilginxConfig configures the bridge to a local evilginx instance
 // running the PhishHook REST API fork (evilginx3-phishhook).
 type EvilginxConfig struct {
@@ -89,7 +84,6 @@ type Config struct {
 	Turnstile         *TurnstileConfig         `json:"turnstile,omitempty"`
 	Evasion           *EvasionConfig           `json:"evasion,omitempty"`
 	Behavioral        *BehavioralConfig        `json:"behavioral,omitempty"`
-	Branding          *BrandingConfig          `json:"branding,omitempty"`
 	Evilginx          *EvilginxConfig          `json:"evilginx,omitempty"`
 	PhishletGenerator *PhishletGeneratorConfig `json:"phishlet_generator,omitempty"`
 }

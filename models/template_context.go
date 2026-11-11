@@ -28,7 +28,6 @@ type PhishingTemplateContext struct {
 	TrackingURL string
 	RId         string
 	BaseURL     string
-	BrandingURL string
 	BaseRecipient
 }
 
@@ -75,17 +74,12 @@ func NewPhishingTemplateContext(ctx TemplateContext, r BaseRecipient, rid string
 		trackingURL.RawQuery = q.Encode()
 	}
 
-	brandingURL, _ := url.Parse(templateURL)
-	brandingURL.Path = "/branding"
-	brandingURL.RawQuery = ""
-
 	return PhishingTemplateContext{
 		BaseRecipient: r,
 		BaseURL:       baseURL.String(),
 		URL:           phishURL.String(),
 		TrackingURL:   trackingURL.String(),
 		Tracker:       "<img alt='' style='display: none' src='" + trackingURL.String() + "'/>",
-		BrandingURL:   brandingURL.String(),
 		From:          fn,
 		RId:           rid,
 	}, nil

@@ -211,7 +211,6 @@ type templateParams struct {
 	Token        string
 	Version      string
 	ModifySystem bool
-	BrandingURL  string
 }
 
 // newTemplateParams returns the default template parameters for a user and
@@ -220,20 +219,12 @@ func newTemplateParams(r *http.Request) templateParams {
 	user := ctx.Get(r, "user").(models.User)
 	session := ctx.Get(r, "session").(*sessions.Session)
 	modifySystem, _ := user.HasPermission(models.PermissionModifySystem)
-	// The branding endpoint is exposed by the phishing server. Expose the
-	// path so templates on the settings page can document it; when branding
-	// is disabled, the value is empty.
-	brandingURL := ""
-	if cfg := models.GetBrandingConfig(); cfg != nil && cfg.Enabled {
-		brandingURL = "/branding"
-	}
 	return templateParams{
 		Token:        csrf.Token(r),
 		User:         user,
 		ModifySystem: modifySystem,
 		Version:      config.Version,
 		Flashes:      session.Flashes(),
-		BrandingURL:  brandingURL,
 	}
 }
 

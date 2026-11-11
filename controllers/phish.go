@@ -101,7 +101,6 @@ type PhishingServer struct {
 	turnstileMiddleware  *evasion.TurnstileMiddleware
 	evasionMiddleware    *evasion.EvasionMiddleware
 	behavioralMiddleware *evasion.BehavioralMiddleware
-	brandingHandler      *BrandingHandler
 }
 
 // NewPhishingServer returns a new instance of the phishing server with
@@ -197,9 +196,6 @@ func (ps *PhishingServer) registerRoutes() {
 	router.HandleFunc("/{path:.*}/track", ps.TrackHandler)
 	router.HandleFunc("/{path:.*}/report", ps.ReportHandler)
 	router.HandleFunc("/report", ps.ReportHandler)
-	if ps.brandingHandler != nil && ps.brandingHandler.IsEnabled() {
-		router.HandleFunc("/branding", ps.brandingHandler.ServeHTTP)
-	}
 	router.HandleFunc("/{path:.*}", ps.PhishHandler)
 
 	// Setup GZIP compression

@@ -235,30 +235,4 @@ $(document).ready(function () {
     })
 
     loadIMAPSettings()
-    loadBrandingStatus()
 })
-
-function loadBrandingStatus() {
-    api.config.branding()
-        .success(function(data) {
-            if (data.enabled) {
-                $("#branding-status")
-                    .removeClass("label-default label-danger")
-                    .addClass("label-success")
-                    .text("Enabled")
-                $("#branding-url-row").show()
-            } else {
-                $("#branding-status")
-                    .removeClass("label-default label-success")
-                    .addClass("label-danger")
-                    .text("Disabled")
-                $("#branding-url-row").hide()
-            }
-        })
-        .error(function() {
-            $("#branding-status")
-                .removeClass("label-default label-success")
-                .addClass("label-danger")
-                .text("Error loading")
-        })
-}
