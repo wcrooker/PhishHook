@@ -156,8 +156,18 @@ func (as *AdminServer) registerRoutes() {
 		csrf.FieldName("csrf_token"),
 		csrf.Secure(as.config.UseTLS),
 		csrf.TrustedOrigins(as.config.TrustedOrigins))
-	adminHandler := csrfHandler(router)
-	adminHandler = mid.Use(adminHandler.ServeHTTP, mid.CSRFExceptions, mid.GetContext, mid.ApplySecurityHeaders)
+	// When the admin server is not served over TLS, mark requests as
+	// plaintext so gorilla/csrf skips the strict Referer checks that only
+	// apply to TLS sites (ref: gorilla/csrf v1.7 origin validation).
+	adminCSRFHandler := func(handler http.Handler) http.Handler {
+		if as.config.UseTLS {
+			return csrfHandler(handler)
+		}
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			csrfHandler(handler).ServeHTTP(w, csrf.PlaintextHTTPRequest(r))
+		})
+	}
+	var adminHandler http.Handler = mid.Use(adminCSRFHandler(router).ServeHTTP, mid.CSRFExceptions, mid.GetContext, mid.ApplySecurityHeaders)
 
 	// Setup GZIP compression
 	gzipWrapper, _ := gziphandler.NewGzipLevelHandler(gzip.BestCompression)
@@ -179,6 +189,7 @@ type templateParams struct {
 	Token        string
 	Version      string
 	ModifySystem bool
+	BrandingURL  string
 }
 
 // newTemplateParams returns the default template parameters for a user and
@@ -187,12 +198,20 @@ func newTemplateParams(r *http.Request) templateParams {
 	user := ctx.Get(r, "user").(models.User)
 	session := ctx.Get(r, "session").(*sessions.Session)
 	modifySystem, _ := user.HasPermission(models.PermissionModifySystem)
+	// The branding endpoint is exposed by the phishing server. Expose the
+	// path so templates on the settings page can document it; when branding
+	// is disabled, the value is empty.
+	brandingURL := ""
+	if cfg := models.GetBrandingConfig(); cfg != nil && cfg.Enabled {
+		brandingURL = "/branding"
+	}
 	return templateParams{
 		Token:        csrf.Token(r),
 		User:         user,
 		ModifySystem: modifySystem,
 		Version:      config.Version,
 		Flashes:      session.Flashes(),
+		BrandingURL:  brandingURL,
 	}
 }
 

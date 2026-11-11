@@ -135,6 +135,19 @@ func (bm *BehavioralMiddleware) IsEnabled() bool {
 	return bm.config != nil && bm.config.Enabled
 }
 
+// RequiresTelemetry reports whether the behavioral middleware enforces any
+// client-side telemetry checks (time-on-page, mouse movement, or interaction
+// counting). When it does, landing pages must carry the telemetry collector
+// script for form submissions to pass validation.
+func (bm *BehavioralMiddleware) RequiresTelemetry() bool {
+	if !bm.IsEnabled() {
+		return false
+	}
+	return bm.config.MinTimeOnPage > 0 ||
+		bm.config.RequireMouseMovement ||
+		bm.config.RequireInteraction
+}
+
 func (bm *BehavioralMiddleware) IsBlockedIP(ipStr string) bool {
 	if !bm.IsEnabled() {
 		return false

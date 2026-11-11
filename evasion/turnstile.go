@@ -2,6 +2,7 @@ package evasion
 
 import (
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -52,8 +53,24 @@ func NewTurnstileMiddleware(config *TurnstileConfig) *TurnstileMiddleware {
 			Timeout: 10 * time.Second,
 		},
 	}
+	// The session cookie is HMAC'd with this secret. An empty secret is
+	// equivalent to no protection, so fall back to a random one.
+	if tm.config.CookieSecret == "" {
+		tm.config.CookieSecret = generateRandomKey()
+	}
 	tm.challengeHTML = tm.buildChallengeHTML()
 	return tm
+}
+
+// generateRandomKey returns a 32-byte random key encoded as hex.
+func generateRandomKey() string {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		// Fall back to a time-derived key; the HMAC still protects the
+		// cookie against tampering within this process lifetime.
+		return fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("%d", time.Now().UnixNano()))))
+	}
+	return fmt.Sprintf("%x", b)
 }
 
 // IsEnabled returns whether Turnstile protection is enabled
@@ -115,8 +132,31 @@ func (tm *TurnstileMiddleware) HandleVerification(w http.ResponseWriter, r *http
 			redirect += "?" + r.URL.RawQuery
 		}
 	}
+	if !isSameOriginRedirect(redirect, r.Host) {
+		redirect = r.URL.Path
+		if r.URL.RawQuery != "" {
+			redirect += "?" + r.URL.RawQuery
+		}
+	}
 	http.Redirect(w, r, redirect, http.StatusFound)
 	return true
+}
+
+// isSameOriginRedirect reports whether the redirect target is a relative path
+// on, or an absolute URL pointing to, the server that served the challenge.
+// This prevents an attacker from using the verification flow as an open
+// redirect.
+func isSameOriginRedirect(redirect, host string) bool {
+	u, err := url.Parse(redirect)
+	if err != nil {
+		return false
+	}
+	// Relative paths (e.g. "/login?next=/") are always safe.
+	if !u.IsAbs() {
+		// Reject scheme-relative URLs such as "//evil.com".
+		return !strings.HasPrefix(redirect, "//")
+	}
+	return u.Host == host
 }
 
 // verifyToken validates a Turnstile token with Cloudflare

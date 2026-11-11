@@ -6,8 +6,10 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -318,6 +320,10 @@ func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.Header().Set("X-Server", config.ServerName)
 	}
+	telemetryScript := ""
+	if ps.requiresTelemetry() {
+		telemetryScript = evasion.GetTelemetryJS()
+	}
 	var ptx models.PhishingTemplateContext
 	// Check for a preview
 	if preview, ok := ctx.Get(r, "result").(models.EmailRequest); ok {
@@ -333,7 +339,7 @@ func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
 			serveCustom404(w, r)
 			return
 		}
-		renderPhishResponse(w, r, ptx, p)
+		renderPhishResponse(w, r, ptx, p, telemetryScript)
 		return
 	}
 	rs := ctx.Get(r, "result").(models.Result)
@@ -369,14 +375,36 @@ func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error(err)
 		serveCustom404(w, r)
+		return
 	}
-	renderPhishResponse(w, r, ptx, p)
+	renderPhishResponse(w, r, ptx, p, telemetryScript)
+}
+
+// requiresTelemetry reports whether the behavioral middleware enforces any
+// client-side telemetry checks. When it does, landing pages need the
+// telemetry collector script injected so form submissions carry the data.
+func (ps *PhishingServer) requiresTelemetry() bool {
+	if ps.behavioralMiddleware == nil {
+		return false
+	}
+	return ps.behavioralMiddleware.RequiresTelemetry()
+}
+
+// injectTelemetryScript embeds the telemetry collector into the landing page
+// HTML, immediately before the closing body tag (or appended when the tag
+// isn't found).
+func injectTelemetryScript(html string, script string) string {
+	lower := strings.ToLower(html)
+	if idx := strings.LastIndex(lower, "</body>"); idx >= 0 {
+		return html[:idx] + script + html[idx:]
+	}
+	return html + script
 }
 
 // renderPhishResponse handles rendering the correct response to the phishing
 // connection. This usually involves writing out the page HTML or redirecting
 // the user to the correct URL.
-func renderPhishResponse(w http.ResponseWriter, r *http.Request, ptx models.PhishingTemplateContext, p models.Page) {
+func renderPhishResponse(w http.ResponseWriter, r *http.Request, ptx models.PhishingTemplateContext, p models.Page, telemetryScript string) {
 	// If the request was a form submit and a redirect URL was specified, we
 	// should send the user to that URL
 	if r.Method == "POST" {
@@ -398,6 +426,9 @@ func renderPhishResponse(w http.ResponseWriter, r *http.Request, ptx models.Phis
 		serveCustom404(w, r)
 		return
 	}
+	if telemetryScript != "" {
+		html = injectTelemetryScript(html, telemetryScript)
+	}
 	w.Write([]byte(html))
 }
 
@@ -406,11 +437,19 @@ func (ps *PhishingServer) RobotsHandler(w http.ResponseWriter, r *http.Request) 
 	fmt.Fprintln(w, "User-agent: *\nDisallow: /")
 }
 
-// serveCustom404 serves a custom 404 page instead of the default Go 404
+// serveCustom404 serves a custom 404 page instead of the default Go 404.
+// The file is copied manually since http.ServeFile writes its own status
+// code, which would collide with the one set here.
 func serveCustom404(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)
-	http.ServeFile(w, r, "static/endpoint/404.html")
+	f, err := os.Open("static/endpoint/404.html")
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	defer f.Close()
+	io.Copy(w, f)
 }
 
 // TransparencyHandler returns a TransparencyResponse for the provided result
