@@ -15,6 +15,7 @@ import (
 	"github.com/gophish/gophish/config"
 	ctx "github.com/gophish/gophish/context"
 	"github.com/gophish/gophish/controllers/api"
+	"github.com/gophish/gophish/evilginx"
 	log "github.com/gophish/gophish/logger"
 	mid "github.com/gophish/gophish/middleware"
 	"github.com/gophish/gophish/middleware/ratelimit"
@@ -35,10 +36,11 @@ type AdminServerOption func(*AdminServer)
 // AdminServer is an HTTP server that implements the administrative Gophish
 // handlers, including the dashboard and REST API.
 type AdminServer struct {
-	server  *http.Server
-	worker  worker.Worker
-	config  config.AdminServer
-	limiter *ratelimit.PostLimiter
+	server          *http.Server
+	worker          worker.Worker
+	config          config.AdminServer
+	limiter         *ratelimit.PostLimiter
+	evilginxClient  *evilginx.Client
 }
 
 var defaultTLSConfig = &tls.Config{
@@ -66,6 +68,14 @@ var defaultTLSConfig = &tls.Config{
 func WithWorker(w worker.Worker) AdminServerOption {
 	return func(as *AdminServer) {
 		as.worker = w
+	}
+}
+
+// WithEvilginxClient is an option that sets the evilginx REST API client
+// used by the evilginx bridge endpoints.
+func WithEvilginxClient(client *evilginx.Client) AdminServerOption {
+	return func(as *AdminServer) {
+		as.evilginxClient = client
 	}
 }
 
@@ -136,11 +146,13 @@ func (as *AdminServer) registerRoutes() {
 	router.HandleFunc("/settings", mid.Use(as.Settings, mid.RequireLogin))
 	router.HandleFunc("/users", mid.Use(as.UserManagement, mid.RequirePermission(models.PermissionModifySystem), mid.RequireLogin))
 	router.HandleFunc("/webhooks", mid.Use(as.Webhooks, mid.RequirePermission(models.PermissionModifySystem), mid.RequireLogin))
+	router.HandleFunc("/evilginx", mid.Use(as.Evilginx, mid.RequirePermission(models.PermissionModifySystem), mid.RequireLogin))
 	router.HandleFunc("/impersonate", mid.Use(as.Impersonate, mid.RequirePermission(models.PermissionModifySystem), mid.RequireLogin))
 	// Create the API routes
 	api := api.NewServer(
 		api.WithWorker(as.worker),
 		api.WithLimiter(as.limiter),
+		api.WithEvilginxClient(as.evilginxClient),
 	)
 	router.PathPrefix("/api/").Handler(api)
 
@@ -351,6 +363,14 @@ func (as *AdminServer) Webhooks(w http.ResponseWriter, r *http.Request) {
 	params := newTemplateParams(r)
 	params.Title = "Webhooks"
 	getTemplate(w, "webhooks").ExecuteTemplate(w, "base", params)
+}
+
+// Evilginx is an admin-only handler that renders the evilginx management
+// console, backed by the evilginx REST API bridge.
+func (as *AdminServer) Evilginx(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = "Evilginx"
+	getTemplate(w, "evilginx").ExecuteTemplate(w, "base", params)
 }
 
 // Impersonate allows an admin to login to a user account without needing the password

@@ -1,0 +1,214 @@
+{{define "body"}}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+    <div class="row">
+        <h1 class="page-header">
+            Evilginx
+        </h1>
+    </div>
+    <div id="flashes" class="row"></div>
+    <div id="evilginx-unconfigured" class="row" style="display:none;">
+        <div class="alert alert-warning">
+            <i class="fa fa-exclamation-circle"></i>
+            Evilginx is not configured. Add an <code>evilginx</code> section to
+            <code>config.json</code> and restart PhishHook:
+            <pre>"evilginx": {
+    "api_url": "http://127.0.0.1:8443",
+    "api_key": "<evilginx -restapi-token value>"
+}</pre>
+        </div>
+    </div>
+    <div id="evilginx-panel">
+        <!-- Nav tabs -->
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="active" role="status"><a href="#status" aria-controls="status" role="tab"
+                    data-toggle="tab">Status</a></li>
+            <li role="phishlets"><a href="#phishlets" aria-controls="phishlets" role="tab"
+                    data-toggle="tab">Phishlets</a></li>
+            <li role="lures"><a href="#lures" aria-controls="lures" role="tab"
+                    data-toggle="tab">Lures</a></li>
+            <li role="sessions"><a href="#sessions" aria-controls="sessions" role="tab"
+                    data-toggle="tab">Sessions</a></li>
+        </ul>
+        <div class="tab-content">
+            <!-- Status -->
+            <div role="tabpanel" class="tab-pane active" id="status">
+                <br />
+                <div id="status-loading"><i class="fa fa-spinner fa-spin"></i> Contacting evilginx...</div>
+                <div id="status-body" style="display:none;">
+                    <div class="row">
+                        <label class="col-sm-2 control-label">Server version</label>
+                        <div class="col-md-6"><label id="eg-version"></label></div>
+                    </div>
+                    <br />
+                    <div class="row">
+                        <label class="col-sm-2 control-label">Base domain</label>
+                        <div class="col-md-6"><label id="eg-domain"></label></div>
+                    </div>
+                    <br />
+                    <div class="row">
+                        <label class="col-sm-2 control-label">External IP</label>
+                        <div class="col-md-6"><label id="eg-ip"></label></div>
+                    </div>
+                    <br />
+                    <div class="row">
+                        <label class="col-sm-2 control-label">Autocert</label>
+                        <div class="col-md-6"><label id="eg-autocert"></label></div>
+                    </div>
+                    <br />
+                    <div class="row">
+                        <label class="col-sm-2 control-label">GoPhish pairing</label>
+                        <div class="col-md-6"><label id="eg-gophish"></label></div>
+                    </div>
+                    <br />
+                    <div class="row">
+                        <label class="col-sm-2 control-label">Enabled phishlets</label>
+                        <div class="col-md-6"><label id="eg-sites"></label></div>
+                    </div>
+                    <br />
+                    <div class="row">
+                        <label class="col-sm-2 control-label">Captured sessions</label>
+                        <div class="col-md-6"><label id="eg-sessions"></label></div>
+                    </div>
+                    <br />
+                    <button type="button" class="btn btn-primary" onclick="loadStatus()"><i class="fa fa-refresh"></i>
+                        Refresh</button>
+                </div>
+            </div>
+            <!-- Phishlets -->
+            <div role="tabpanel" class="tab-pane" id="phishlets">
+                <br />
+                <div id="phishlets-loading"><i class="fa fa-spinner fa-spin"></i> Loading phishlets...</div>
+                <div class="row">
+                    <table id="phishletTable" class="table" style="display:none;">
+                        <thead>
+                            <tr>
+                                <th class="col-md-2">Name</th>
+                                <th class="col-md-1">Status</th>
+                                <th class="col-md-3">Hostname</th>
+                                <th class="col-md-4">Phishing Hosts</th>
+                                <th class="col-md-2 no-sort"></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Lures -->
+            <div role="tabpanel" class="tab-pane" id="lures">
+                <br />
+                <button type="button" class="btn btn-primary" onclick="showLureModal()">
+                    <i class="fa fa-plus"></i> New Lure</button>
+                &nbsp;
+                <span data-toggle="modal" data-backdrop="static" data-target="#lureModal">
+                    <button class="btn btn-primary" style="display:none;"></button>
+                </span>
+                <br /><br />
+                <div id="lures-loading"><i class="fa fa-spinner fa-spin"></i> Loading lures...</div>
+                <div class="row">
+                    <table id="lureTable" class="table" style="display:none;">
+                        <thead>
+                            <tr>
+                                <th class="col-md-1">ID</th>
+                                <th class="col-md-2">Phishlet</th>
+                                <th class="col-md-3">Path</th>
+                                <th class="col-md-3">Redirect URL</th>
+                                <th class="col-md-3 no-sort"></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Sessions -->
+            <div role="tabpanel" class="tab-pane" id="sessions">
+                <br />
+                <div id="sessions-loading"><i class="fa fa-spinner fa-spin"></i> Loading sessions...</div>
+                <div class="row">
+                    <table id="sessionTable" class="table" style="display:none;">
+                        <thead>
+                            <tr>
+                                <th class="col-md-1">ID</th>
+                                <th class="col-md-2">Phishlet</th>
+                                <th class="col-md-3">Username</th>
+                                <th class="col-md-2">Created</th>
+                                <th class="col-md-2">Captured</th>
+                                <th class="col-md-2 no-sort"></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Hostname modal -->
+<div class="modal fade" id="hostnameModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">Set hostname for <span id="hostname-phishlet"></span></h4>
+            </div>
+            <div class="modal-body">
+                <div class="row" id="hostnameModal.flashes"></div>
+                <p class="text-muted">The hostname must be a subdomain of the evilginx base domain.</p>
+                <input type="text" class="form-control" id="hostname-input" placeholder="login.yourdomain.com">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="hostname-save">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Lure modal -->
+<div class="modal fade" id="lureModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="lureModalTitle">New Lure</h4>
+            </div>
+            <div class="modal-body">
+                <div class="row" id="lureModal.flashes"></div>
+                <label class="control-label" for="lurePhishlet">Phishlet:</label>
+                <select class="form-control" id="lurePhishlet"></select>
+                <label class="control-label" for="lureRedirect">Redirect URL (optional):
+                    <i class="fa fa-question-circle" data-toggle="tooltip" data-placement="right"
+                        title="Where to send the target after the phishing interaction completes."></i>
+                </label>
+                <input type="text" class="form-control" id="lureRedirect" placeholder="https://portal.example.com">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="lure-save">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Session detail modal -->
+<div class="modal fade" id="sessionModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">Session <span id="sessionModalSid"></span></h4>
+            </div>
+            <div class="modal-body">
+                <div id="session-detail"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="session-copy-json"><i class="fa fa-copy"></i>
+                    Copy JSON</button>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}} {{define "scripts"}}
+<script src="/js/dist/app/evilginx.min.js"></script>
+{{end}}

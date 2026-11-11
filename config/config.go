@@ -56,6 +56,24 @@ type BrandingConfig struct {
 	AllowedOrigins []string `json:"allowed_origins"`
 }
 
+// EvilginxConfig configures the bridge to a local evilginx instance
+// running the PhishHook REST API fork (evilginx3-phishhook).
+type EvilginxConfig struct {
+	// APIURL is the base URL of the evilginx REST API. The API is
+	// intended to be bound to loopback and reached from PhishHook on
+	// the same host.
+	APIURL string `json:"api_url"`
+	// APIKey is the bearer token the evilginx REST API requires.
+	APIKey string `json:"api_key"`
+}
+
+// PhishletGeneratorConfig configures the optional RTLPhishletGenerator
+// sidecar service used to generate phishlets from target URLs.
+type PhishletGeneratorConfig struct {
+	// URL is the base URL of the generator's backend API.
+	URL string `json:"url"`
+}
+
 type Config struct {
 	AdminConf      AdminServer       `json:"admin_server"`
 	PhishConf      PhishServer       `json:"phish_server"`
@@ -66,10 +84,12 @@ type Config struct {
 	TestFlag       bool              `json:"test_flag"`
 	ContactAddress string            `json:"contact_address"`
 	Logging        *log.Config       `json:"logging"`
-	Turnstile      *TurnstileConfig  `json:"turnstile,omitempty"`
-	Evasion        *EvasionConfig    `json:"evasion,omitempty"`
-	Behavioral     *BehavioralConfig `json:"behavioral,omitempty"`
-	Branding       *BrandingConfig   `json:"branding,omitempty"`
+	Turnstile           *TurnstileConfig           `json:"turnstile,omitempty"`
+	Evasion             *EvasionConfig             `json:"evasion,omitempty"`
+	Behavioral          *BehavioralConfig          `json:"behavioral,omitempty"`
+	Branding            *BrandingConfig            `json:"branding,omitempty"`
+	Evilginx            *EvilginxConfig            `json:"evilginx,omitempty"`
+	PhishletGenerator   *PhishletGeneratorConfig   `json:"phishlet_generator,omitempty"`
 }
 
 // Version contains the current gophish version

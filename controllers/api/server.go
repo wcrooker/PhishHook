@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"github.com/gophish/gophish/evilginx"
 	mid "github.com/gophish/gophish/middleware"
 	"github.com/gophish/gophish/middleware/ratelimit"
 	"github.com/gophish/gophish/models"
@@ -18,9 +19,10 @@ type ServerOption func(*Server)
 // stopped. Rather, it's meant to be used as an http.Handler in the
 // AdminServer.
 type Server struct {
-	handler http.Handler
-	worker  worker.Worker
-	limiter *ratelimit.PostLimiter
+	handler        http.Handler
+	worker         worker.Worker
+	limiter        *ratelimit.PostLimiter
+	evilginxClient *evilginx.Client
 }
 
 // NewServer returns a new instance of the API handler with the provided
@@ -49,6 +51,13 @@ func WithWorker(w worker.Worker) ServerOption {
 func WithLimiter(limiter *ratelimit.PostLimiter) ServerOption {
 	return func(as *Server) {
 		as.limiter = limiter
+	}
+}
+
+// WithEvilginxClient is an option that sets the evilginx REST API client.
+func WithEvilginxClient(client *evilginx.Client) ServerOption {
+	return func(as *Server) {
+		as.evilginxClient = client
 	}
 }
 
@@ -90,6 +99,17 @@ func (as *Server) registerRoutes() {
 	router.HandleFunc("/results/{id:[a-zA-Z0-9]+}/open", as.ResultOpen)
 	router.HandleFunc("/results/{id:[a-zA-Z0-9]+}/click", as.ResultClick)
 	router.HandleFunc("/results/{id:[a-zA-Z0-9]+}/submit", as.ResultSubmit)
+	// Evilginx bridge. These proxy the evilginx REST API on loopback and
+	// require the Modify System permission.
+	evilginxPerm := mid.RequirePermission(models.PermissionModifySystem)
+	router.Handle("/evilginx/status", mid.Use(as.EvilginxStatus, evilginxPerm))
+	router.Handle("/evilginx/phishlets", mid.Use(as.EvilginxPhishlets, evilginxPerm))
+	router.Handle("/evilginx/phishlets/{name}/hosts", mid.Use(as.EvilginxPhishletHosts, evilginxPerm))
+	router.Handle("/evilginx/phishlets/{name}/{action}", mid.Use(as.EvilginxPhishletAction, evilginxPerm))
+	router.Handle("/evilginx/lures", mid.Use(as.EvilginxLures, evilginxPerm))
+	router.Handle("/evilginx/lures/{id:[0-9]+}", mid.Use(as.EvilginxLure, evilginxPerm))
+	router.Handle("/evilginx/sessions", mid.Use(as.EvilginxSessions, evilginxPerm))
+	router.Handle("/evilginx/sessions/{id:[a-zA-Z0-9]+}", mid.Use(as.EvilginxSession, evilginxPerm))
 	as.handler = router
 }
 

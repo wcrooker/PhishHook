@@ -313,6 +313,34 @@ When **Evilginx Mode** is enabled on a campaign:
     }'
   ```
 
+### Evilginx Management Console
+
+PhishHook includes a full GUI for evilginx (admin-only, **Evilginx** in the sidebar) with tabs for status, phishlets, lures and captured sessions. The console talks to evilginx through a REST API added by the [evilginx3-phishhook](https://github.com/wcrooker/evilginx3-phishhook) fork — everything else in that fork works exactly like upstream evilginx.
+
+**1. Run evilginx with the REST API enabled (same host as PhishHook):**
+
+```bash
+./evilginx -p ./phishlets -restapi 127.0.0.1:8443 -restapi-token <choose-a-secret>
+```
+
+**2. Configure the bridge in PhishHook's `config.json` and restart:**
+
+```json
+"evilginx": {
+    "api_url": "http://127.0.0.1:8443",
+    "api_key": "<the -restapi-token value>"
+}
+```
+
+**3. Open the Evilginx page in PhishHook.** You can:
+
+- **Status** — version, base domain, autocert, gophish pairing, session counts
+- **Phishlets** — enable/disable, set hostnames, view the DNS records each phishlet needs
+- **Lures** — create, copy URLs, delete
+- **Sessions** — browse captured sessions, view captured credentials and auth cookies, copy session JSON, delete
+
+The browser never talks to the evilginx API directly — every request goes through PhishHook's authenticated admin API (`/api/evilginx/*`, requires the Modify System permission), and PhishHook forwards to the loopback API. The PhishletGenerator sidecar can additionally be wired in via the `phishlet_generator` config section.
+
 ## License
 
 MIT License - Based on [GoPhish](https://github.com/gophish/gophish) by Jordan Wright

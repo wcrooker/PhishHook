@@ -37,6 +37,7 @@ import (
 	"github.com/gophish/gophish/config"
 	"github.com/gophish/gophish/controllers"
 	"github.com/gophish/gophish/dialer"
+	"github.com/gophish/gophish/evilginx"
 	"github.com/gophish/gophish/imap"
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/middleware"
@@ -109,10 +110,21 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Configure the evilginx bridge when an evilginx REST API has been
+	// set up in config.json.
+	var evilginxClient *evilginx.Client
+	if conf.Evilginx != nil && conf.Evilginx.APIURL != "" && conf.Evilginx.APIKey != "" {
+		evilginxClient = evilginx.NewClient(conf.Evilginx.APIURL, conf.Evilginx.APIKey)
+		log.Infof("Evilginx bridge enabled: %s", conf.Evilginx.APIURL)
+	}
+
 	// Create our servers
 	adminOptions := []controllers.AdminServerOption{}
 	if *disableMailer {
 		adminOptions = append(adminOptions, controllers.WithWorker(nil))
+	}
+	if evilginxClient != nil {
+		adminOptions = append(adminOptions, controllers.WithEvilginxClient(evilginxClient))
 	}
 	adminConfig := conf.AdminConf
 	adminServer := controllers.NewAdminServer(adminConfig, adminOptions...)
