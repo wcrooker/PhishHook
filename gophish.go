@@ -137,6 +137,14 @@ func main() {
 	adminConfig := conf.AdminConf
 	adminServer := controllers.NewAdminServer(adminConfig, adminOptions...)
 	middleware.Store.Options.Secure = adminConfig.UseTLS
+	if !adminConfig.UseTLS {
+		// gorilla/sessions v1.4 defaults to SameSite=None which, per the
+		// cookie spec, browsers reject unless the cookie is also Secure.
+		// Serving without TLS would leave every browser silently dropping
+		// the session cookie (login appears to "reload the page"), so fall
+		// back to Lax when the admin server is on plain HTTP.
+		middleware.Store.Options.SameSite = http.SameSiteLaxMode
+	}
 
 	phishConfig := conf.PhishConf
 	if *domain != "" {
