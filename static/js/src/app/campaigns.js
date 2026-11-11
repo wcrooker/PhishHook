@@ -250,7 +250,8 @@ function setupOptions() {
     api.pages.get()
         .success(function (pages) {
             if (pages.length == 0) {
-                modalError("No pages found!")
+                // Landing pages are optional in evilginx mode - just leave
+                // the selector empty rather than erroring.
                 return false
             } else {
                 var page_s2 = $.map(pages, function (obj) {
@@ -338,6 +339,35 @@ function copy(idx) {
         .error(function (data) {
             $("#modal\\.flashes").empty().append("<div style=\"text-align:center\" class=\"alert alert-danger\">\
             <i class=\"fa fa-exclamation-circle\"></i> " + data.responseJSON.message + "</div>")
+        })
+}
+
+// checkLurePrefill opens the campaign modal pre-filled for an evilginx
+// lure when the page is loaded with ?evilginx_lure=<id> (set by the
+// "Create campaign" button on the evilginx console's Lures tab).
+function checkLurePrefill() {
+    var params = new URLSearchParams(window.location.search)
+    var lureId = params.get("evilginx_lure")
+    if (!lureId) return
+    history.replaceState(null, "", "/campaigns")
+    // The lure lives behind the admin-only evilginx bridge; non-admin
+    // users simply get an error flash.
+    query("/evilginx/lures/" + lureId, "GET", {}, true)
+        .success(function (lure) {
+            edit("new")
+            $("#modal").modal("show")
+            $("#url").val(lure.url || "")
+            $("#evilginx_mode").prop("checked", true)
+            toggleEvilginxMode()
+            if (!$("#encryption_key").val()) {
+                $("#encryption_key").val(generateLureKey())
+            }
+            successFlash("Campaign pre-filled from lure " + escapeHtml(lure.id) +
+                ". Make sure evilginx is configured with the same encryption key (config enc_key).")
+        })
+        .error(function (data) {
+            errorFlash(data.responseJSON ? data.responseJSON.message :
+                "Could not load lure " + escapeHtml(lureId) + " (admin permission required)")
         })
 }
 
@@ -462,6 +492,7 @@ $(document).ready(function () {
             $("#loading").hide()
             errorFlash("Error fetching campaigns")
         })
+    checkLurePrefill()
     // Select2 Defaults
     $.fn.select2.defaults.set("width", "100%");
     $.fn.select2.defaults.set("dropdownParent", $("#modal_body"));

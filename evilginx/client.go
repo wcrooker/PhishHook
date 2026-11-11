@@ -90,6 +90,7 @@ type SessionSummary struct {
 	Id             int    `json:"id"`
 	Phishlet       string `json:"phishlet"`
 	Username       string `json:"username"`
+	LandingURL     string `json:"landing_url"`
 	CreateTime     int64  `json:"create_time"`
 	UpdateTime     int64  `json:"update_time"`
 	SessionId      string `json:"session_id"`

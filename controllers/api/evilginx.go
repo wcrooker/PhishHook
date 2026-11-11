@@ -2,10 +2,14 @@ package api
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 
+	ctx "github.com/gophish/gophish/context"
 	"github.com/gophish/gophish/evilginx"
+	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
 	"github.com/gorilla/mux"
 )
@@ -167,6 +171,83 @@ func (as *Server) EvilginxPhishletHosts(w http.ResponseWriter, r *http.Request) 
 	JSONResponse(w, map[string]interface{}{"phishlet": name, "records": records}, http.StatusOK)
 }
 
+// DNSCheck is the result of verifying one phishlet hostname.
+type DNSCheck struct {
+	Hostname   string   `json:"hostname"`
+	ExpectedIP string   `json:"expected_ip"`
+	ResolvedIP []string `json:"resolved_ips"`
+	OK         bool     `json:"ok"`
+	Error      string   `json:"error,omitempty"`
+}
+
+// EvilginxPhishletVerify resolves every host a phishlet needs and checks
+// that each one points at evilginx's external IP. This is the pre-launch
+// checklist: a red row here means a dead AiTM phishlet.
+func (as *Server) EvilginxPhishletVerify(w http.ResponseWriter, r *http.Request) {
+	client := as.requireEvilginx(w, r)
+	if client == nil {
+		return
+	}
+	if r.Method != http.MethodGet {
+		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		return
+	}
+	vars := evilginxActionVars(r)
+	name := vars["name"]
+	if name == "" {
+		JSONResponse(w, models.Response{Success: false, Message: "Invalid phishlet"}, http.StatusBadRequest)
+		return
+	}
+	status, err := client.GetStatus()
+	if err != nil {
+		writeEvilginxError(w, err)
+		return
+	}
+	expected := status.ExternalIP
+	records, err := client.GetPhishletHosts(name)
+	if err != nil {
+		writeEvilginxError(w, err)
+		return
+	}
+	checks := []DNSCheck{}
+	allOK := len(records) > 0
+	for _, rec := range records {
+		// Records look like "203.0.113.10 login.example.com".
+		parts := strings.Fields(rec)
+		if len(parts) != 2 {
+			continue
+		}
+		check := DNSCheck{
+			Hostname:   parts[1],
+			ExpectedIP: parts[0],
+		}
+		if expected != "" {
+			check.ExpectedIP = expected
+		}
+		ips, err := net.LookupHost(check.Hostname)
+		if err != nil {
+			check.Error = err.Error()
+		} else {
+			check.ResolvedIP = ips
+			for _, ip := range ips {
+				if ip == check.ExpectedIP {
+					check.OK = true
+					break
+				}
+			}
+		}
+		if !check.OK {
+			allOK = false
+		}
+		checks = append(checks, check)
+	}
+	JSONResponse(w, map[string]interface{}{
+		"phishlet": name,
+		"ok":       allOK,
+		"checks":   checks,
+	}, http.StatusOK)
+}
+
 // EvilginxLures lists and creates lures.
 func (as *Server) EvilginxLures(w http.ResponseWriter, r *http.Request) {
 	client := as.requireEvilginx(w, r)
@@ -261,6 +342,108 @@ func (as *Server) EvilginxSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	JSONResponse(w, sessions, http.StatusOK)
+}
+
+// CorrelatedSession is an evilginx session joined with the PhishHook
+// campaign result it belongs to, when the landing URL can be decrypted
+// with one of the user's evilginx-mode campaign keys.
+type CorrelatedSession struct {
+	evilginx.SessionSummary
+	CampaignID     int64          `json:"campaign_id"`
+	CampaignName   string         `json:"campaign_name"`
+	ResultID       string         `json:"result_id"`
+	ResultStatus   string         `json:"result_status"`
+	RecipientEmail string         `json:"recipient_email"`
+	RecipientName  string         `json:"recipient_name"`
+	Timeline       []models.Event `json:"timeline"`
+}
+
+// correlateLandingURL attempts to decrypt the rid from an evilginx
+// landing URL by trying every evilginx-mode campaign's encryption key.
+// Lure params may also be unencrypted (no enc_key in evilginx), so the
+// empty key is attempted as well.
+func correlateLandingURL(landingURL string, campaigns []models.Campaign) (string, *models.Campaign, map[string]string) {
+	u, err := url.Parse(landingURL)
+	if err != nil {
+		return "", nil, nil
+	}
+	for k, values := range u.Query() {
+		// The lure parameter key itself is random; the value holds the
+		// encrypted payload. Skip known non-lure params.
+		if k == "rid" || k == "o" {
+			continue
+		}
+		for _, v := range values {
+			// Try each campaign's key first.
+			for i := range campaigns {
+				params, ok, err := evilginx.ExtractPhishUrlParams(v, campaigns[i].EncryptionKey)
+				if err == nil && ok && params["rid"] != "" {
+					return params["rid"], &campaigns[i], params
+				}
+			}
+			// Fall back to an unencrypted lure.
+			params, ok, err := evilginx.ExtractPhishUrlParams(v, "")
+			if err == nil && ok && params["rid"] != "" {
+				return params["rid"], nil, params
+			}
+		}
+	}
+	return "", nil, nil
+}
+
+// EvilginxCorrelate joins evilginx sessions with the PhishHook campaign
+// results they belong to, giving one pane of glass per recipient: email
+// opens, clicks, submits and the captured session. An optional
+// ?session_id=<id> query parameter limits the response to one session.
+func (as *Server) EvilginxCorrelate(w http.ResponseWriter, r *http.Request) {
+	client := as.requireEvilginx(w, r)
+	if client == nil {
+		return
+	}
+	if r.Method != http.MethodGet {
+		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		return
+	}
+	sessions, err := client.ListSessions()
+	if err != nil {
+		writeEvilginxError(w, err)
+		return
+	}
+	filter := r.URL.Query().Get("session_id")
+	campaigns, err := models.GetEvilginxModeCampaigns(ctx.Get(r, "user_id").(int64))
+	if err != nil {
+		log.Error(err)
+		// Continue with empty campaign list: sessions simply won't
+		// correlate.
+		campaigns = []models.Campaign{}
+	}
+	out := []CorrelatedSession{}
+	for _, s := range sessions {
+		if filter != "" && s.SessionId != filter {
+			continue
+		}
+		corr := CorrelatedSession{SessionSummary: s}
+		if rid, campaign, params := correlateLandingURL(s.LandingURL, campaigns); rid != "" {
+			if result, err := models.GetResult(rid); err == nil {
+				corr.ResultID = rid
+				corr.ResultStatus = result.Status
+				corr.RecipientEmail = result.Email
+				corr.RecipientName = strings.TrimSpace(result.FirstName + " " + result.LastName)
+				if campaign != nil {
+					corr.CampaignID = campaign.Id
+					corr.CampaignName = campaign.Name
+				}
+				if events, err := models.GetEventsByCampaignAndEmail(result.CampaignId, result.Email); err == nil {
+					corr.Timeline = events
+				}
+			}
+			if params != nil && corr.RecipientEmail == "" && params["email"] != "" {
+				corr.RecipientEmail = params["email"]
+			}
+		}
+		out = append(out, corr)
+	}
+	JSONResponse(w, out, http.StatusOK)
 }
 
 // EvilginxSession gets or deletes a captured session.

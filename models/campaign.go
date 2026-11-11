@@ -428,6 +428,29 @@ func GetCampaign(id int64, uid int64) (Campaign, error) {
 	return c, err
 }
 
+// GetEvilginxModeCampaigns returns all evilginx-mode campaigns owned by
+// the given user, including their lure encryption keys. This is used to
+// correlate evilginx sessions with campaign results.
+func GetEvilginxModeCampaigns(uid int64) ([]Campaign, error) {
+	cs := []Campaign{}
+	err := db.Where("user_id = ? AND evilginx_mode = ?", uid, true).Find(&cs).Error
+	if err != nil {
+		log.Error(err)
+	}
+	return cs, err
+}
+
+// GetEventsByCampaignAndEmail returns the timeline events for one
+// recipient within a campaign.
+func GetEventsByCampaignAndEmail(cid int64, email string) ([]Event, error) {
+	es := []Event{}
+	err := db.Where("campaign_id = ? AND email = ?", cid, email).Order("time asc").Find(&es).Error
+	if err != nil {
+		log.Error(err)
+	}
+	return es, err
+}
+
 // GetCampaignResults returns just the campaign results for the given campaign
 func GetCampaignResults(id int64, uid int64) (CampaignResults, error) {
 	cr := CampaignResults{}

@@ -123,10 +123,12 @@ func (as *Server) registerRoutes() {
 	router.Handle("/evilginx/status", mid.Use(as.EvilginxStatus, evilginxPerm))
 	router.Handle("/evilginx/phishlets", mid.Use(as.EvilginxPhishlets, evilginxPerm))
 	router.Handle("/evilginx/phishlets/{name}/hosts", mid.Use(as.EvilginxPhishletHosts, evilginxPerm))
+	router.Handle("/evilginx/phishlets/{name}/verify", mid.Use(as.EvilginxPhishletVerify, evilginxPerm))
 	router.Handle("/evilginx/phishlets/{name}/{action}", mid.Use(as.EvilginxPhishletAction, evilginxPerm))
 	router.Handle("/evilginx/lures", mid.Use(as.EvilginxLures, evilginxPerm))
 	router.Handle("/evilginx/lures/{id:[0-9]+}", mid.Use(as.EvilginxLure, evilginxPerm))
 	router.Handle("/evilginx/sessions", mid.Use(as.EvilginxSessions, evilginxPerm))
+	router.Handle("/evilginx/correlate", mid.Use(as.EvilginxCorrelate, evilginxPerm))
 	router.Handle("/evilginx/sessions/{id:[a-zA-Z0-9]+}", mid.Use(as.EvilginxSession, evilginxPerm))
 	// Phishlet generator sidecar reverse proxy. Registered last since it
 	// matches a broad path prefix.

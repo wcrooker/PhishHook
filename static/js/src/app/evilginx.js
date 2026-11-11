@@ -86,6 +86,8 @@ function loadPhishlets() {
                         <i class='fa fa-globe'></i> Hostname</button> "
                     actions += "<button class='btn btn-default btn-xs' onclick='egShowHosts(\"" + p.name + "\")'>\
                         <i class='fa fa-list'></i> DNS</button>"
+                    actions += "<button class='btn btn-info btn-xs' onclick='egVerifyDns(\"" + p.name + "\")'>\
+                        <i class='fa fa-shield'></i> Verify</button>"
                 }
                 var row = [
                     escapeHtml(p.name) + (p.is_template ? " <span class='label label-info'>template</span>" : ""),
@@ -169,6 +171,43 @@ function egShowHosts(name) {
         })
 }
 
+// egVerifyDns runs the pre-launch checklist: resolve every phishlet host
+// and check it points at the evilginx server's external IP.
+function egVerifyDns(name) {
+    Swal.fire({
+        title: "Verifying DNS for " + escapeHtml(name),
+        html: "<i class='fa fa-spinner fa-spin'></i> Resolving hostnames...",
+        allowOutsideClick: false,
+        showConfirmButton: false
+    })
+    egQuery("/phishlets/" + name + "/verify", "GET", {})
+        .success(function (result) {
+            var html = "<table class='table table-striped' style='text-align:left'>\
+                <thead><tr><th>Hostname</th><th>Expected</th><th>Resolved</th><th></th></tr></thead><tbody>"
+            $.each(result.checks || [], function (i, c) {
+                var icon = c.ok
+                    ? "<i class='fa fa-check-circle' style='color:#5cb85c'></i>"
+                    : "<i class='fa fa-times-circle' style='color:#d9534f'></i>"
+                html += "<tr><td>" + escapeHtml(c.hostname) + "</td><td>" + escapeHtml(c.expected_ip) +
+                    "</td><td>" + escapeHtml((c.resolved_ips || []).join(", ") || c.error || "no answer") +
+                    "</td><td>" + icon + "</td></tr>"
+            })
+            html += "</tbody></table>"
+            if ((result.checks || []).length === 0) {
+                html = "<p>No hosts to verify. Is the phishlet enabled?</p>"
+            }
+            Swal.fire({
+                title: result.ok ? "All good!" : "DNS issues found",
+                html: html,
+                type: result.ok ? "success" : "warning"
+            })
+        })
+        .error(function (data) {
+            Swal.close()
+            errorFlash(data.responseJSON ? data.responseJSON.message : "Verification failed")
+        })
+}
+
 // loadLures populates the Lures tab.
 function loadLures() {
     if (typeof luresTable === "undefined") {
@@ -191,7 +230,9 @@ function loadLures() {
                 var actions = "<button class='btn btn-default btn-xs' onclick='egDeleteLure(" + l.id + ")'>\
                     <i class='fa fa-trash-o'></i> Delete</button>"
                 if (l.url) {
-                    actions = "<button class='btn btn-primary btn-xs' onclick='egCopyLure(" + l.id + ")'>\
+                    actions = "<button class='btn btn-success btn-xs' onclick='egCreateCampaign(" + l.id + ")'>\
+                        <i class='fa fa-rocket'></i> Campaign</button> " +
+                        "<button class='btn btn-primary btn-xs' onclick='egCopyLure(" + l.id + ")'>\
                         <i class='fa fa-copy'></i> Copy URL</button> " + actions
                 }
                 var row = [
@@ -209,6 +250,13 @@ function loadLures() {
             $("#lures-loading").html("<div class=\"alert alert-danger\">" +
                 (data.responseJSON ? data.responseJSON.message : "Error loading lures") + "</div>")
         })
+}
+
+// egCreateCampaign jumps to the campaigns page with the lure prefill
+// parameter; the campaigns page opens the wizard pre-configured for
+// evilginx mode with the lure URL.
+function egCreateCampaign(id) {
+    window.location = "/campaigns?evilginx_lure=" + id
 }
 
 function egCopyLure(id) {
@@ -283,7 +331,9 @@ function showLureModal() {
     })
 }
 
-// loadSessions populates the Sessions tab.
+// loadSessions populates the Sessions tab with correlated sessions:
+// each evilginx capture is joined to the PhishHook campaign result it
+// belongs to when the lure parameters can be decrypted.
 function loadSessions() {
     if (typeof sessionsTable === "undefined") {
         sessionsTable = $("#sessionTable").DataTable({
@@ -296,7 +346,7 @@ function loadSessions() {
             ]
         })
     }
-    egQuery("/sessions", "GET", {})
+    egQuery("/correlate", "GET", {})
         .success(function (sessions) {
             $("#sessions-loading").hide()
             $("#sessionTable").show()
@@ -305,6 +355,16 @@ function loadSessions() {
                 var captured = []
                 if (s.creds_captured) captured.push("<span class='label label-danger'>credentials</span>")
                 if (s.tokens_captured) captured.push("<span class='label label-warning'>tokens</span>")
+                var campaign = "(unmatched)"
+                if (s.result_id) {
+                    var campaignLink = ""
+                    if (s.campaign_id) {
+                        campaignLink = "<br><a href='/campaigns/" + s.campaign_id + "'>" +
+                            escapeHtml(s.campaign_name) + "</a>"
+                    }
+                    campaign = "<span class='label label-success'>" + escapeHtml(s.result_status) + "</span>" +
+                        "<br>" + escapeHtml(s.recipient_email) + campaignLink
+                }
                 var actions = "<button class='btn btn-primary btn-xs' onclick='egShowSession(\"" + s.session_id + "\")'>\
                     <i class='fa fa-eye'></i> View</button> "
                 actions += "<button class='btn btn-danger btn-xs' onclick='egDeleteSession(\"" + s.session_id + "\")'>\
@@ -315,6 +375,7 @@ function loadSessions() {
                     escapeHtml(s.username),
                     moment.unix(s.create_time).format("MMMM Do YYYY, h:mm:ss a"),
                     captured.join(" "),
+                    campaign,
                     "<div class='pull-right'>" + actions + "</div>"
                 ]
                 sessionsTable.row.add(row)
@@ -347,6 +408,34 @@ function egShowSession(sid) {
             html += "<b>Body tokens:</b> " + Object.keys(detail.body_tokens || {}).join(", ") + "<br>"
             html += "<b>HTTP tokens:</b> " + Object.keys(detail.http_tokens || {}).join(", ") + "<br>"
             html += "</div></div>"
+            // Merged campaign timeline (from the correlated view), when
+            // this session maps to a PhishHook recipient.
+            egQuery("/correlate?session_id=" + encodeURIComponent(detail.session_id), "GET", {})
+                .success(function (sessions) {
+                    var corr = null
+                    $.each(sessions, function (i, s) {
+                        if (s.session_id === detail.session_id && s.result_id) {
+                            corr = s
+                            return false
+                        }
+                    })
+                    if (corr) {
+                        html += "<h4>Campaign timeline</h4>"
+                        html += "<p><b>" + escapeHtml(corr.recipient_email) + "</b> in <a href='/campaigns/" +
+                            corr.campaign_id + "'>" + escapeHtml(corr.campaign_name) + "</a>" +
+                            " &mdash; status: <span class='label label-success'>" + escapeHtml(corr.result_status) +
+                            "</span></p>"
+                        html += "<table class='table table-striped'><tbody>"
+                        $.each(corr.timeline || [], function (i, e) {
+                            html += "<tr><td style='width:180px'>" + moment(e.time).format("MMM Do YYYY, h:mm:ss a") +
+                                "</td><td>" + escapeHtml(e.message) + "</td></tr>"
+                        })
+                        html += "<tr><td>" + moment.unix(detail.create_time).format("MMM Do YYYY, h:mm:ss a") +
+                            "</td><td><span class='label label-danger'>Session captured (evilginx)</span></td></tr>"
+                        html += "</tbody></table>"
+                    }
+                    $("#session-detail").html(html)
+                })
             html += "<h4>Captured cookies</h4><table class='table table-striped'>\
                 <thead><tr><th>Domain</th><th>Name</th><th>Value</th></tr></thead><tbody>"
             $.each(detail.tokens || {}, function (domain, tokens) {
