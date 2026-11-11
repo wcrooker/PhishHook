@@ -510,55 +510,153 @@ function pgCheckHealth() {
         })
 }
 
-// pgGenerate runs the end-to-end analyze + generate flow.
+// pgGenerate runs the end-to-end analyze + generate flow. It prefers the
+// WebSocket analyze endpoint for live progress and falls back to the
+// plain REST endpoint when the socket can't be established.
 function pgGenerate() {
     var targetUrl = $("#genUrl").val().trim()
     if (targetUrl === "") {
         errorFlash("Enter a target login page URL first")
         return
     }
-    var payload = {
-        url: targetUrl,
-        use_ai: $("#genUseAI").is(":checked"),
-        author: $("#genAuthor").val()
-    }
+    var useAI = $("#genUseAI").is(":checked")
+    var author = $("#genAuthor").val()
     var name = $("#genName").val().trim()
-    if (name !== "") {
-        payload.custom_name = name
-    }
+
     $("#genButton").prop("disabled", true)
-    $("#genStatus").show()
     $("#genEditor").hide()
     $("#genWarnings").hide()
-    pgQuery("/generate/from-url", "POST", payload)
-        .success(function (resp) {
-            $("#genButton").prop("disabled", false)
-            $("#genStatus").hide()
-            pgLastYaml = resp.yaml_content
-            pgLastPhishlet = resp.phishlet
-            $("#genYaml").val(resp.yaml_content)
-            $("#genEditor").show()
-            var warnHtml = ""
-            if (resp.warnings && resp.warnings.length > 0) {
-                warnHtml += "<div class='alert alert-warning'><b>Warnings:</b><ul>"
-                $.each(resp.warnings, function (i, w) { warnHtml += "<li>" + escapeHtml(w) + "</li>" })
-                warnHtml += "</ul></div>"
-            }
-            if (resp.suggestions && resp.suggestions.length > 0) {
-                warnHtml += "<div class='alert alert-info'><b>Suggestions:</b><ul>"
-                $.each(resp.suggestions, function (i, s) { warnHtml += "<li>" + escapeHtml(s) + "</li>" })
-                warnHtml += "</ul></div>"
-            }
-            if (warnHtml !== "") {
-                $("#genWarnings").html(warnHtml).show()
-            }
-            successFlash("Phishlet generated - review and validate the YAML")
+    $("#genStatus").show().html("<i class='fa fa-spinner fa-spin'></i> Connecting to generator...")
+
+    var finished = false
+    var finish = function (resp) {
+        if (finished) return
+        finished = true
+        $("#genButton").prop("disabled", false)
+        $("#genStatus").hide()
+        if (resp) {
+            pgShowGenerated(resp)
+        }
+    }
+    var progress = function (step, total, message) {
+        $("#genStatus").html(
+            "<b>Step " + step + "/" + total + ":</b> " + escapeHtml(message) +
+            " <div class='progress' style='max-width:400px;margin-top:5px;'>\
+               <div class='progress-bar' style='width:" + Math.round((step / total) * 100) + "%'></div></div>")
+    }
+
+    var ws = pgAnalyzeWS(targetUrl, progress, function (analysis) {
+        // Analysis complete via WebSocket - generate from it.
+        $("#genStatus").html("<i class='fa fa-spinner fa-spin'></i> Generating phishlet...")
+        pgQuery("/generate/from-analysis", "POST", {
+            analysis: analysis,
+            use_ai: useAI,
+            author: author,
+            custom_name: name || undefined
         })
-        .error(function (data) {
-            $("#genButton").prop("disabled", false)
-            $("#genStatus").hide()
-            errorFlash(data.responseJSON ? data.responseJSON.message : "Generation failed")
+            .success(finish)
+            .error(function (data) {
+                finish(null)
+                errorFlash(data.responseJSON ? data.responseJSON.message : "Generation failed")
+            })
+    }, function () {
+        // WebSocket unavailable - fall back to the synchronous endpoint.
+        pgQuery("/generate/from-url", "POST", {
+            url: targetUrl,
+            use_ai: useAI,
+            author: author,
+            custom_name: name || undefined
         })
+            .success(finish)
+            .error(function (data) {
+                finish(null)
+                errorFlash(data.responseJSON ? data.responseJSON.message : "Generation failed")
+            })
+    }, function (message) {
+        finish(null)
+        errorFlash(message || "Analysis failed")
+    })
+}
+
+// pgShowGenerated renders the generate response into the editor.
+function pgShowGenerated(resp) {
+    pgLastYaml = resp.yaml_content
+    pgLastPhishlet = resp.phishlet
+    $("#genYaml").val(resp.yaml_content)
+    $("#genEditor").show()
+    var warnHtml = ""
+    if (resp.warnings && resp.warnings.length > 0) {
+        warnHtml += "<div class='alert alert-warning'><b>Warnings:</b><ul>"
+        $.each(resp.warnings, function (i, w) { warnHtml += "<li>" + escapeHtml(w) + "</li>" })
+        warnHtml += "</ul></div>"
+    }
+    if (resp.suggestions && resp.suggestions.length > 0) {
+        warnHtml += "<div class='alert alert-info'><b>Suggestions:</b><ul>"
+        $.each(resp.suggestions, function (i, s) { warnHtml += "<li>" + escapeHtml(s) + "</li>" })
+        warnHtml += "</ul></div>"
+    }
+    if (warnHtml !== "") {
+        $("#genWarnings").html(warnHtml).show()
+    }
+    successFlash("Phishlet generated - review and validate the YAML")
+}
+
+// pgAnalyzeWS opens the generator's analysis WebSocket through the
+// PhishHook bridge and streams progress. Calls onProgress for each
+// update, onAnalysis with the analysis result on completion, onFallback
+// when the socket can't be established, and onError for analysis
+// failures reported by the server.
+function pgAnalyzeWS(url, onProgress, onAnalysis, onFallback, onError) {
+    var protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
+    var ws
+    try {
+        ws = new WebSocket(protocol + "//" + window.location.host +
+            "/api/phishletgen/analyze/ws?api_key=" + encodeURIComponent(user.api_key))
+    } catch (e) {
+        onFallback()
+        return null
+    }
+    var settled = false
+    ws.onopen = function () {
+        ws.send(JSON.stringify({ url: url }))
+    }
+    ws.onmessage = function (event) {
+        var msg
+        try {
+            msg = JSON.parse(event.data)
+        } catch (e) {
+            return
+        }
+        if (msg.error) {
+            settled = true
+            onError(msg.error)
+            return
+        }
+        if (msg.status === "analyzing") {
+            onProgress(msg.step, msg.total_steps, msg.message)
+        } else if (msg.status === "complete") {
+            settled = true
+            onAnalysis(msg.result)
+        } else if (msg.status === "error") {
+            settled = true
+            onError(msg.message)
+        }
+    }
+    ws.onerror = function () {
+        if (!settled) {
+            settled = true
+            onFallback()
+        }
+    }
+    ws.onclose = function () {
+        // Server closes after complete/error; only fall back when we
+        // never got a definitive answer.
+        if (!settled) {
+            settled = true
+            onFallback()
+        }
+    }
+    return ws
 }
 
 // pgValidate validates the current YAML against the evilginx schema.
