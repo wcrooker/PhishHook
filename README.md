@@ -343,7 +343,7 @@ The browser never talks to the evilginx API directly — every request goes thro
 
 ### Phishlet Generator
 
-The console's **Generator** tab drives the [PhishletGenerator](https://github.com/wcrooker/PhishletGenerator-Evilginx) sidecar (Playwright-based target analysis → phishlet YAML → validation), with an optional AI refinement toggle. The sidecar runs on the compose network and is reached only through the authenticated `/api/phishletgen/*` proxy.
+The console's **Generator** tab drives the [PhishletGenerator](https://github.com/wcrooker/PhishletGenerator-Evilginx) sidecar (Playwright-based target analysis → phishlet YAML → validation), with an optional AI refinement toggle and live WebSocket progress during analysis. The sidecar runs on the compose network and is reached only through the authenticated `/api/phishletgen/*` proxy (WebSockets included).
 
 **Standalone setup:** run the generator's backend (`uvicorn app.main:app --port 8000` inside the generator repo), then set in `config.json`:
 
