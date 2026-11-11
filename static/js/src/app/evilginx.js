@@ -388,6 +388,234 @@ function egDeleteSession(sid) {
     })
 }
 
+// ---------------------------------------------------------------------------
+// Phishlet generator sidecar (proxied through /api/phishletgen/*)
+// ---------------------------------------------------------------------------
+
+var pgLastYaml = null
+var pgLastPhishlet = null
+
+function pgQuery(endpoint, method, data) {
+    return query("/phishletgen" + endpoint, method, data, true)
+}
+
+// pgCheckHealth shows or hides the generator panel depending on the
+// sidecar's availability.
+function pgCheckHealth() {
+    pgQuery("/health", "GET", {})
+        .success(function (data) {
+            $("#generator-panel").show()
+            $("#generator-unconfigured").hide()
+            pgLoadLibrary()
+        })
+        .error(function (data) {
+            if (data.status === 503) {
+                $("#generator-unconfigured").show()
+                $("#generator-panel").hide()
+            } else {
+                // Configured but the sidecar is down.
+                $("#generator-panel").show()
+                $("#generator-unconfigured").hide()
+                errorFlash(data.responseJSON ? data.responseJSON.message : "Phishlet generator is unreachable")
+            }
+        })
+}
+
+// pgGenerate runs the end-to-end analyze + generate flow.
+function pgGenerate() {
+    var targetUrl = $("#genUrl").val().trim()
+    if (targetUrl === "") {
+        errorFlash("Enter a target login page URL first")
+        return
+    }
+    var payload = {
+        url: targetUrl,
+        use_ai: $("#genUseAI").is(":checked"),
+        author: $("#genAuthor").val()
+    }
+    var name = $("#genName").val().trim()
+    if (name !== "") {
+        payload.custom_name = name
+    }
+    $("#genButton").prop("disabled", true)
+    $("#genStatus").show()
+    $("#genEditor").hide()
+    $("#genWarnings").hide()
+    pgQuery("/generate/from-url", "POST", payload)
+        .success(function (resp) {
+            $("#genButton").prop("disabled", false)
+            $("#genStatus").hide()
+            pgLastYaml = resp.yaml_content
+            pgLastPhishlet = resp.phishlet
+            $("#genYaml").val(resp.yaml_content)
+            $("#genEditor").show()
+            var warnHtml = ""
+            if (resp.warnings && resp.warnings.length > 0) {
+                warnHtml += "<div class='alert alert-warning'><b>Warnings:</b><ul>"
+                $.each(resp.warnings, function (i, w) { warnHtml += "<li>" + escapeHtml(w) + "</li>" })
+                warnHtml += "</ul></div>"
+            }
+            if (resp.suggestions && resp.suggestions.length > 0) {
+                warnHtml += "<div class='alert alert-info'><b>Suggestions:</b><ul>"
+                $.each(resp.suggestions, function (i, s) { warnHtml += "<li>" + escapeHtml(s) + "</li>" })
+                warnHtml += "</ul></div>"
+            }
+            if (warnHtml !== "") {
+                $("#genWarnings").html(warnHtml).show()
+            }
+            successFlash("Phishlet generated - review and validate the YAML")
+        })
+        .error(function (data) {
+            $("#genButton").prop("disabled", false)
+            $("#genStatus").hide()
+            errorFlash(data.responseJSON ? data.responseJSON.message : "Generation failed")
+        })
+}
+
+// pgValidate validates the current YAML against the evilginx schema.
+function pgValidate() {
+    pgQuery("/validate/", "POST", { yaml_content: $("#genYaml").val() })
+        .success(function (result) {
+            var html = ""
+            if (result.valid) {
+                html += "<div class='alert alert-success'><i class='fa fa-check-circle'></i> Valid evilginx phishlet</div>"
+            } else {
+                html += "<div class='alert alert-danger'><b>Validation failed:</b><ul>"
+                $.each(result.errors || [], function (i, e) { html += "<li>" + escapeHtml(e) + "</li>" })
+                html += "</ul></div>"
+            }
+            if (result.warnings && result.warnings.length > 0) {
+                html += "<div class='alert alert-warning'><ul>"
+                $.each(result.warnings, function (i, w) { html += "<li>" + escapeHtml(w) + "</li>" })
+                html += "</ul></div>"
+            }
+            $("#genValidation").html(html)
+        })
+        .error(function (data) {
+            $("#genValidation").html("<div class='alert alert-danger'>" +
+                (data.responseJSON ? data.responseJSON.message : "Validation request failed") + "</div>")
+        })
+}
+
+function pgCopy() {
+    var el = document.createElement("textarea")
+    el.value = $("#genYaml").val()
+    document.body.appendChild(el)
+    el.select()
+    document.execCommand("copy")
+    document.body.removeChild(el)
+    successFlash("Phishlet YAML copied to clipboard")
+}
+
+function pgDownload() {
+    var name = "phishlet.yaml"
+    if (pgLastPhishlet && pgLastPhishlet.name) {
+        name = pgLastPhishlet.name + ".yaml"
+    }
+    var blob = new Blob([$("#genYaml").val()], { type: "text/yaml" })
+    var a = document.createElement("a")
+    a.href = URL.createObjectURL(blob)
+    a.download = name
+    a.click()
+    URL.revokeObjectURL(a.href)
+}
+
+// pgSaveLibrary stores the phishlet in the generator's library.
+function pgSaveLibrary() {
+    var name = (pgLastPhishlet && pgLastPhishlet.name) || "generated-phishlet"
+    var payload = {
+        name: name,
+        author: $("#genAuthor").val() || "@phishhook",
+        target_url: $("#genUrl").val() || "",
+        yaml_content: $("#genYaml").val(),
+        tags: ["phishhook"]
+    }
+    pgQuery("/phishlets/", "POST", payload)
+        .success(function () {
+            successFlash("Saved to phishlet library")
+            pgLoadLibrary()
+        })
+        .error(function (data) {
+            errorFlash(data.responseJSON ? data.responseJSON.message : "Failed to save to library")
+        })
+}
+
+// pgLoadLibrary lists saved phishlets from the generator library.
+function pgLoadLibrary() {
+    if (typeof pgLibraryTable === "undefined") {
+        pgLibraryTable = $("#pgLibraryTable").DataTable({
+            columnDefs: [{ orderable: false, targets: "no-sort" }],
+            order: [[0, "asc"]]
+        })
+    }
+    pgQuery("/phishlets/", "GET", {})
+        .success(function (list) {
+            $("#pgLibraryTable").show()
+            pgLibraryTable.clear().draw()
+            $.each(list.phishlets || [], function (i, p) {
+                var validation = p.validation_status === "valid"
+                    ? "<span class='label label-success'>valid</span>"
+                    : (p.validation_status === "invalid"
+                        ? "<span class='label label-danger'>invalid</span>"
+                        : "<span class='label label-default'>unknown</span>")
+                var actions = "<button class='btn btn-primary btn-xs' onclick='pgLoadIntoEditor(\"" + p.id + "\")'>\
+                    <i class='fa fa-edit'></i> Open</button> "
+                actions += "<button class='btn btn-danger btn-xs' onclick='pgDeleteLibrary(\"" + p.id + "\")'>\
+                    <i class='fa fa-trash-o'></i></button>"
+                var row = [
+                    escapeHtml(p.name),
+                    escapeHtml(p.target_url),
+                    validation,
+                    "<div class='pull-right'>" + actions + "</div>"
+                ]
+                pgLibraryTable.row.add(row)
+            })
+            pgLibraryTable.draw()
+        })
+        .error(function () {
+            // Silent - the library is a convenience.
+        })
+}
+
+function pgLoadIntoEditor(id) {
+    pgQuery("/phishlets/" + id, "GET", {})
+        .success(function (p) {
+            pgLastYaml = p.yaml_content
+            pgLastPhishlet = null
+            $("#genUrl").val(p.target_url || "")
+            $("#genYaml").val(p.yaml_content)
+            $("#genEditor").show()
+            $("#genValidation").empty()
+            $("a[href='#generator']").tab("show")
+        })
+        .error(function (data) {
+            errorFlash(data.responseJSON ? data.responseJSON.message : "Failed to load phishlet")
+        })
+}
+
+function pgDeleteLibrary(id) {
+    Swal.fire({
+        title: "Are you sure?",
+        text: "This deletes the phishlet from the generator library.",
+        type: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Delete",
+        confirmButtonColor: "#428bca",
+        reverseButtons: true
+    }).then(function (result) {
+        if (result.value) {
+            pgQuery("/phishlets/" + id, "DELETE", {})
+                .success(function () {
+                    successFlash("Phishlet deleted from library")
+                    pgLoadLibrary()
+                })
+                .error(function (data) {
+                    errorFlash(data.responseJSON ? data.responseJSON.message : "Delete failed")
+                })
+        }
+    })
+}
+
 $(document).ready(function () {
     // Check whether the bridge is configured; the API returns 503 with a
     // descriptive message when it isn't.
@@ -410,6 +638,7 @@ $(document).ready(function () {
     $("a[href='#phishlets']").on("shown.bs.tab", loadPhishlets)
     $("a[href='#lures']").on("shown.bs.tab", loadLures)
     $("a[href='#sessions']").on("shown.bs.tab", loadSessions)
+    $("a[href='#generator']").on("shown.bs.tab", pgCheckHealth)
     // Copy session JSON.
     $("#session-copy-json").on("click", function () {
         if (!egSessionDetail) return

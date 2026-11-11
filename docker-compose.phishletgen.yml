@@ -1,0 +1,66 @@
+# Optional compose file that runs PhishHook alongside the
+# RTLPhishletGenerator sidecar and FlareSolverr.
+#
+# Prerequisite: clone the generator repo next to this one (or into
+# ./phishletgen) so its Dockerfile can be built:
+#
+#   git clone git@github.com:wcrooker/PhishletGenerator-Evilginx.git phishletgen
+#
+# Usage:
+#   cp .env.phishletgen.example .env   # optional AI keys
+#   docker compose -f docker-compose.phishletgen.yml up -d --build
+#
+# Then in config.json set:
+#   "phishlet_generator": { "url": "http://phishletgen:8000" }
+#
+# The generator backend is not published to the host: PhishHook reaches it
+# over the compose network, and the browser reaches it only through the
+# authenticated /api/phishletgen/* proxy.
+
+services:
+  phishhook:
+    build: .
+    ports:
+      - "3333:3333"
+      - "80:80"
+    volumes:
+      - phishhook-data:/opt/gophish
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -kfsS https://localhost:3333/login || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  phishletgen:
+    build: ./phishletgen
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - FLARESOLVERR_ENABLED=${FLARESOLVERR_ENABLED:-false}
+    depends_on:
+      - flaresolverr
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl -fsS http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Cloudflare challenge solver used by the generator when Playwright hits
+  # an interstitial. Only the generator needs to reach it.
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    environment:
+      - LOG_LEVEL=info
+      - TZ=UTC
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8191/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  phishhook-data:

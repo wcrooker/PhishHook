@@ -339,7 +339,27 @@ PhishHook includes a full GUI for evilginx (admin-only, **Evilginx** in the side
 - **Lures** — create, copy URLs, delete
 - **Sessions** — browse captured sessions, view captured credentials and auth cookies, copy session JSON, delete
 
-The browser never talks to the evilginx API directly — every request goes through PhishHook's authenticated admin API (`/api/evilginx/*`, requires the Modify System permission), and PhishHook forwards to the loopback API. The PhishletGenerator sidecar can additionally be wired in via the `phishlet_generator` config section.
+The browser never talks to the evilginx API directly — every request goes through PhishHook's authenticated admin API (`/api/evilginx/*`, requires the Modify System permission), and PhishHook forwards to the loopback API.
+
+### Phishlet Generator
+
+The console's **Generator** tab drives the [PhishletGenerator](https://github.com/wcrooker/PhishletGenerator-Evilginx) sidecar (Playwright-based target analysis → phishlet YAML → validation), with an optional AI refinement toggle. The sidecar runs on the compose network and is reached only through the authenticated `/api/phishletgen/*` proxy.
+
+**Standalone setup:** run the generator's backend (`uvicorn app.main:app --port 8000` inside the generator repo), then set in `config.json`:
+
+```json
+"phishlet_generator": {
+    "url": "http://127.0.0.1:8000"
+}
+```
+
+**Docker setup (everything together):**
+
+```bash
+git clone git@github.com:wcrooker/PhishletGenerator-Evilginx.git phishletgen
+cp .env.phishletgen.example .env   # optional AI keys
+docker compose -f docker-compose.phishletgen.yml up -d --build
+```
 
 ## License
 

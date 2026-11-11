@@ -36,11 +36,12 @@ type AdminServerOption func(*AdminServer)
 // AdminServer is an HTTP server that implements the administrative Gophish
 // handlers, including the dashboard and REST API.
 type AdminServer struct {
-	server          *http.Server
-	worker          worker.Worker
-	config          config.AdminServer
-	limiter         *ratelimit.PostLimiter
-	evilginxClient  *evilginx.Client
+	server         *http.Server
+	worker         worker.Worker
+	config         config.AdminServer
+	limiter        *ratelimit.PostLimiter
+	evilginxClient *evilginx.Client
+	phishletGenURL string
 }
 
 var defaultTLSConfig = &tls.Config{
@@ -76,6 +77,14 @@ func WithWorker(w worker.Worker) AdminServerOption {
 func WithEvilginxClient(client *evilginx.Client) AdminServerOption {
 	return func(as *AdminServer) {
 		as.evilginxClient = client
+	}
+}
+
+// WithPhishletGenURL is an option that sets the phishlet generator
+// sidecar base URL.
+func WithPhishletGenURL(generatorURL string) AdminServerOption {
+	return func(as *AdminServer) {
+		as.phishletGenURL = generatorURL
 	}
 }
 
@@ -153,6 +162,7 @@ func (as *AdminServer) registerRoutes() {
 		api.WithWorker(as.worker),
 		api.WithLimiter(as.limiter),
 		api.WithEvilginxClient(as.evilginxClient),
+		api.WithPhishletGenURL(as.phishletGenURL),
 	)
 	router.PathPrefix("/api/").Handler(api)
 

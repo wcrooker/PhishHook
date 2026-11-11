@@ -70,26 +70,28 @@ type EvilginxConfig struct {
 // PhishletGeneratorConfig configures the optional RTLPhishletGenerator
 // sidecar service used to generate phishlets from target URLs.
 type PhishletGeneratorConfig struct {
-	// URL is the base URL of the generator's backend API.
+	// URL is the base URL of the generator's backend API, e.g.
+	// http://127.0.0.1:8000. When set, the admin API proxies
+	// /api/phishletgen/* to the generator's /api/v1/* endpoints.
 	URL string `json:"url"`
 }
 
 type Config struct {
-	AdminConf      AdminServer       `json:"admin_server"`
-	PhishConf      PhishServer       `json:"phish_server"`
-	DBName         string            `json:"db_name"`
-	DBPath         string            `json:"db_path"`
-	DBSSLCaPath    string            `json:"db_sslca_path"`
-	MigrationsPath string            `json:"migrations_prefix"`
-	TestFlag       bool              `json:"test_flag"`
-	ContactAddress string            `json:"contact_address"`
-	Logging        *log.Config       `json:"logging"`
-	Turnstile           *TurnstileConfig           `json:"turnstile,omitempty"`
-	Evasion             *EvasionConfig             `json:"evasion,omitempty"`
-	Behavioral          *BehavioralConfig          `json:"behavioral,omitempty"`
-	Branding            *BrandingConfig            `json:"branding,omitempty"`
-	Evilginx            *EvilginxConfig            `json:"evilginx,omitempty"`
-	PhishletGenerator   *PhishletGeneratorConfig   `json:"phishlet_generator,omitempty"`
+	AdminConf         AdminServer              `json:"admin_server"`
+	PhishConf         PhishServer              `json:"phish_server"`
+	DBName            string                   `json:"db_name"`
+	DBPath            string                   `json:"db_path"`
+	DBSSLCaPath       string                   `json:"db_sslca_path"`
+	MigrationsPath    string                   `json:"migrations_prefix"`
+	TestFlag          bool                     `json:"test_flag"`
+	ContactAddress    string                   `json:"contact_address"`
+	Logging           *log.Config              `json:"logging"`
+	Turnstile         *TurnstileConfig         `json:"turnstile,omitempty"`
+	Evasion           *EvasionConfig           `json:"evasion,omitempty"`
+	Behavioral        *BehavioralConfig        `json:"behavioral,omitempty"`
+	Branding          *BrandingConfig          `json:"branding,omitempty"`
+	Evilginx          *EvilginxConfig          `json:"evilginx,omitempty"`
+	PhishletGenerator *PhishletGeneratorConfig `json:"phishlet_generator,omitempty"`
 }
 
 // Version contains the current gophish version

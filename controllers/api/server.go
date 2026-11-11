@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gophish/gophish/evilginx"
+	log "github.com/gophish/gophish/logger"
 	mid "github.com/gophish/gophish/middleware"
 	"github.com/gophish/gophish/middleware/ratelimit"
 	"github.com/gophish/gophish/models"
@@ -19,10 +20,11 @@ type ServerOption func(*Server)
 // stopped. Rather, it's meant to be used as an http.Handler in the
 // AdminServer.
 type Server struct {
-	handler        http.Handler
-	worker         worker.Worker
-	limiter        *ratelimit.PostLimiter
-	evilginxClient *evilginx.Client
+	handler          http.Handler
+	worker           worker.Worker
+	limiter          *ratelimit.PostLimiter
+	evilginxClient   *evilginx.Client
+	phishletGenProxy http.Handler
 }
 
 // NewServer returns a new instance of the API handler with the provided
@@ -58,6 +60,22 @@ func WithLimiter(limiter *ratelimit.PostLimiter) ServerOption {
 func WithEvilginxClient(client *evilginx.Client) ServerOption {
 	return func(as *Server) {
 		as.evilginxClient = client
+	}
+}
+
+// WithPhishletGenURL is an option that enables the phishlet generator
+// sidecar reverse proxy for the given base URL.
+func WithPhishletGenURL(generatorURL string) ServerOption {
+	return func(as *Server) {
+		if generatorURL == "" {
+			return
+		}
+		proxy, err := newPhishletGenProxy(generatorURL)
+		if err != nil {
+			log.Errorf("phishlet generator proxy disabled: %v", err)
+			return
+		}
+		as.phishletGenProxy = proxy
 	}
 }
 
@@ -110,6 +128,11 @@ func (as *Server) registerRoutes() {
 	router.Handle("/evilginx/lures/{id:[0-9]+}", mid.Use(as.EvilginxLure, evilginxPerm))
 	router.Handle("/evilginx/sessions", mid.Use(as.EvilginxSessions, evilginxPerm))
 	router.Handle("/evilginx/sessions/{id:[a-zA-Z0-9]+}", mid.Use(as.EvilginxSession, evilginxPerm))
+	// Phishlet generator sidecar reverse proxy. Registered last since it
+	// matches a broad path prefix.
+	if as.phishletGenProxy != nil {
+		router.PathPrefix("/phishletgen/").Handler(as.phishletGenProxy)
+	}
 	as.handler = router
 }
 

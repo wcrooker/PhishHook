@@ -117,6 +117,11 @@ func main() {
 		evilginxClient = evilginx.NewClient(conf.Evilginx.APIURL, conf.Evilginx.APIKey)
 		log.Infof("Evilginx bridge enabled: %s", conf.Evilginx.APIURL)
 	}
+	var phishletGenURL string
+	if conf.PhishletGenerator != nil && conf.PhishletGenerator.URL != "" {
+		phishletGenURL = conf.PhishletGenerator.URL
+		log.Infof("Phishlet generator sidecar enabled: %s", phishletGenURL)
+	}
 
 	// Create our servers
 	adminOptions := []controllers.AdminServerOption{}
@@ -125,6 +130,9 @@ func main() {
 	}
 	if evilginxClient != nil {
 		adminOptions = append(adminOptions, controllers.WithEvilginxClient(evilginxClient))
+	}
+	if phishletGenURL != "" {
+		adminOptions = append(adminOptions, controllers.WithPhishletGenURL(phishletGenURL))
 	}
 	adminConfig := conf.AdminConf
 	adminServer := controllers.NewAdminServer(adminConfig, adminOptions...)

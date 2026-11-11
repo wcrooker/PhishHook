@@ -28,6 +28,8 @@
                     data-toggle="tab">Lures</a></li>
             <li role="sessions"><a href="#sessions" aria-controls="sessions" role="tab"
                     data-toggle="tab">Sessions</a></li>
+            <li role="generator"><a href="#generator" aria-controls="generator" role="tab"
+                    data-toggle="tab">Generator</a></li>
         </ul>
         <div class="tab-content">
             <!-- Status -->
@@ -137,6 +139,84 @@
                         </thead>
                         <tbody></tbody>
                     </table>
+                </div>
+            </div>
+            <!-- Generator -->
+            <div role="tabpanel" class="tab-pane" id="generator">
+                <br />
+                <div id="generator-unconfigured" class="alert alert-warning" style="display:none;">
+                    <i class="fa fa-exclamation-circle"></i>
+                    The phishlet generator sidecar is not configured. Add a
+                    <code>phishlet_generator</code> section to <code>config.json</code> and restart:
+                    <pre>"phishlet_generator": {
+    "url": "http://127.0.0.1:8000"
+}</pre>
+                </div>
+                <div id="generator-panel" style="display:none;">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="control-label" for="genUrl">Target login page URL:
+                                <i class="fa fa-question-circle" data-toggle="tooltip" data-placement="right"
+                                    title="The generator analyzes this page with a headless browser to discover domains, login forms, cookies and the auth flow."></i>
+                            </label>
+                            <input type="text" class="form-control" id="genUrl"
+                                placeholder="https://login.example.com/signin">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="control-label" for="genName">Phishlet name (optional):</label>
+                            <input type="text" class="form-control" id="genName" placeholder="auto">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="control-label" for="genAuthor">Author:</label>
+                            <input type="text" class="form-control" id="genAuthor" value="@phishhook">
+                        </div>
+                    </div>
+                    <br />
+                    <div class="checkbox checkbox-primary">
+                        <input id="genUseAI" type="checkbox">
+                        <label for="genUseAI">AI refinement
+                            <i class="fa fa-question-circle" data-toggle="tooltip" data-placement="right"
+                                title="Refine the generated phishlet with an LLM (requires AI keys in the generator's .env)."></i>
+                        </label>
+                    </div>
+                    <br />
+                    <button type="button" class="btn btn-primary" id="genButton" onclick="pgGenerate()">
+                        <i class="fa fa-magic"></i> Generate Phishlet</button>
+                    <div id="genStatus" style="display:none; margin-top:10px;">
+                        <i class="fa fa-spinner fa-spin"></i> Analyzing target and generating phishlet - this can take
+                        up to two minutes...
+                    </div>
+                    <div id="genWarnings" style="display:none; margin-top:10px;"></div>
+                    <div id="genEditor" style="display:none; margin-top:15px;">
+                        <label class="control-label">Phishlet YAML:</label>
+                        <textarea id="genYaml" class="form-control" rows="20"
+                            style="font-family:monospace; font-size:12px;"></textarea>
+                        <br />
+                        <button type="button" class="btn btn-default" onclick="pgValidate()"><i class="fa fa-check"></i>
+                            Validate</button>
+                        <button type="button" class="btn btn-default" onclick="pgCopy()"><i class="fa fa-copy"></i>
+                            Copy</button>
+                        <button type="button" class="btn btn-default" onclick="pgDownload()"><i class="fa fa-download"></i>
+                            Download</button>
+                        <button type="button" class="btn btn-primary" onclick="pgSaveLibrary()"><i class="fa fa-save"></i>
+                            Save to Library</button>
+                        <div id="genValidation" style="margin-top:10px;"></div>
+                    </div>
+                    <hr />
+                    <h4>Library</h4>
+                    <div class="row">
+                        <table id="pgLibraryTable" class="table" style="display:none;">
+                            <thead>
+                                <tr>
+                                    <th class="col-md-3">Name</th>
+                                    <th class="col-md-3">Target</th>
+                                    <th class="col-md-2">Validation</th>
+                                    <th class="col-md-4 no-sort"></th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
