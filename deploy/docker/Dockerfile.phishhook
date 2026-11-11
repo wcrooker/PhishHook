@@ -1,0 +1,48 @@
+# PhishHook production image — built by the setup wizard's docker-compose.yml
+# with the repository root as the build context.
+#
+# Runtime layout:
+#   /opt/phishhook/phishhook   binary
+#   /opt/phishhook/db          sqlite migrations (referenced by migrations_prefix)
+#   /opt/phishhook/templates   admin UI templates (rendered from disk)
+#   /opt/phishhook/static      admin UI assets (dist rebuilt in the js stage)
+#   /data                      bind mount: config.json + gophish.db
+
+# --- admin UI asset build -------------------------------------------------
+FROM node:22-bookworm AS build-js
+WORKDIR /build
+COPY . .
+RUN npm install --only=dev && npx gulp
+
+# --- Go build --------------------------------------------------------------
+FROM golang:1.24-bookworm AS build-go
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=1 go build -trimpath -o /out/phishhook .
+
+# --- runtime ----------------------------------------------------------------
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl libcap2-bin && \
+    rm -rf /var/lib/apt/lists/*
+RUN useradd -m -d /opt/phishhook -s /bin/bash app
+
+WORKDIR /opt/phishhook
+COPY --from=build-go /out/phishhook ./phishhook
+COPY VERSION ./VERSION
+COPY db ./db
+COPY templates ./templates
+COPY static/images ./static/images
+COPY --from=build-js /build/static/js/dist ./static/js/dist
+COPY --from=build-js /build/static/css/dist ./static/css/dist
+
+# Allow binding privileged ports (phish server on 443 when not sharing with evilginx)
+RUN setcap 'cap_net_bind_service=+ep' /opt/phishhook/phishhook && \
+    chown -R app:app /opt/phishhook
+
+USER app
+EXPOSE 3333 8443 443
+ENTRYPOINT ["/opt/phishhook/phishhook"]
+CMD ["--config", "/data/config.json"]

@@ -277,7 +277,37 @@ First run creates the `admin` account with a temporary password printed to the l
 
 ## Deploying the full stack
 
-This walks through deploying PhishHook, the evilginx fork, and the phishlet generator on one box, wired together. Fresh Ubuntu/Debian box assumed; read top to bottom.
+### Automated (recommended): the setup wizard
+
+The wizard packages the entire deployment as a Docker Compose stack and wires the services together — no hand-editing of configs, no terminal commands in evilginx, no secret juggling.
+
+```bash
+git clone https://github.com/wcrooker/PhishHook.git
+cd PhishHook
+go build -o phishhook-setup ./setup
+sudo ./phishhook-setup            # interactive; asks everything below
+```
+
+It asks for:
+
+- **Base phishing domain** (evilginx phishlets live under it) and the classic-phishing-server port if you want both
+- **Admin UI exposure** — loopback + SSH tunnel (recommended) or public
+- **Evilginx Let's Encrypt autocert** — off by default (self-signed/developer mode until DNS is live)
+- **Phishlet generator sidecar** on/off
+- **SMTP sending profile** — host:port, credentials, from address — and an optional post-launch **test email**
+- A **GitHub token** if your repos are private
+
+It then: pre-flights Docker/Compose, port availability, and DNS (resolves the base domain against the server's external IP); generates all secrets (admin password, API key, evilginx REST token, lure encryption key, CSRF key); clones the private repos; renders `docker-compose.yml` + `phishhook/config.json` + the evilginx config store **with the gophish pairing and enc_key already set**; builds and starts the stack; sets the admin password via the API; creates the sending profile; and runs smoke tests (admin API, evilginx REST + bridge + push pairing, generator through its authenticated proxy).
+
+Useful flags (also usable with `--batch` for unattended installs): `--base-domain`, `--admin-listen loopback|public`, `--autocert`, `--smtp-host user:pass@host:port`, `--test-email`, `--no-start` (generate only), `--force` (overwrite configs; data dirs preserved).
+
+The deployment lives in `/opt/phishhook` (configurable): secrets in `.env` (chmod 600), data under `phishhook/` (sqlite) and `evilginx/data/` (config store + phishlets). Update the stack with `cd /opt/phishhook && git -C ... pull && docker compose up -d --build`.
+
+> Runs the services with host networking on Linux — the loopback URLs match the architecture above exactly (admin 3333, evilginx REST 8455, generator 8000).
+
+### Manual deployment
+
+This walks through deploying PhishHook, the evilginx fork, and the phishlet generator on one box by hand, wired together. Fresh Ubuntu/Debian box assumed; read top to bottom.
 
 ### Ports and who owns them
 
