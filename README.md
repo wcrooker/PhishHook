@@ -335,9 +335,9 @@ PhishHook includes a full GUI for evilginx (admin-only, **Evilginx** in the side
 **3. Open the Evilginx page in PhishHook.** You can:
 
 - **Status** — version, base domain, autocert, gophish pairing, session counts
-- **Phishlets** — enable/disable, set hostnames, view the DNS records each phishlet needs
-- **Lures** — create, copy URLs, delete
-- **Sessions** — browse captured sessions, view captured credentials and auth cookies, copy session JSON, delete
+- **Phishlets** — enable/disable, set hostnames, view the DNS records each phishlet needs, and run a **DNS pre-launch check** (resolves every phishlet hostname and confirms it points at the evilginx server — a red row means the phishlet will be dead)
+- **Lures** — create, copy URLs, delete, and jump straight to a **pre-filled campaign** (evilginx mode on, lure URL set, encryption key generated)
+- **Sessions** — browse captured sessions **correlated with PhishHook campaigns**: each session is matched back to its recipient by decrypting the lure parameters, and the detail modal shows the merged timeline (opened → clicked → submitted → session captured) plus credentials, auth cookies, and exportable JSON
 
 The browser never talks to the evilginx API directly — every request goes through PhishHook's authenticated admin API (`/api/evilginx/*`, requires the Modify System permission), and PhishHook forwards to the loopback API.
 
